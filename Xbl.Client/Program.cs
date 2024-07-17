@@ -111,13 +111,17 @@ public class Program
 
         foreach (var (key,value) in options)
         {
-            Console.WriteLine($"  {key.PadRight(maxLen)}  {value}");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"  {key.PadRight(maxLen)}  ");
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine(value);
         }
         Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine("EXAMPLES");
-        Console.WriteLine("  xbl -a {apiKey} -u");
+        Console.WriteLine("  xbl -a={apiKey} -u");
         Console.WriteLine("  xbl -r");
-        Console.WriteLine("  xbl -p=E00001D5D85ED487 -r");
+        Console.WriteLine("  xbl -p=E00001D5D85ED487 -m");
         Console.WriteLine();
     }
 
