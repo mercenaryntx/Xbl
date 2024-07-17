@@ -91,7 +91,6 @@ public class XblClient
         var titles = await LoadTitles();
         var data = titles
             .OrderByDescending(t => t.Achievement.ProgressPercentage)
-            //.Take(149)
             .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
 
         var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new RarestAchievementItem(
@@ -140,7 +139,7 @@ public class XblClient
         if (additionalTitles != null)
         {
             var a = additionalTitles.ToArray();
-            RenderProfile(a, "X360 Profile");
+            RenderProfile(a, "Xbox 360 Profile");
 
             var allTitles = titles.Concat(a);
             var g = allTitles.GroupBy(t => t.Name).ToArray();
@@ -214,7 +213,10 @@ public class XblClient
 
     public static async Task<Achievement[]> LoadAchievements(string titleId)
     {
-        var json = await File.ReadAllTextAsync(Path.Combine(DataFolder, $"{titleId}.json"));
+        var path = Path.Combine(DataFolder, $"{titleId}.json");
+        if (!File.Exists(path)) return Array.Empty<Achievement>();
+
+        var json = await File.ReadAllTextAsync(path);
         var details = JsonSerializer.Deserialize<TitleDetails>(json);
         return details.Achievements;
     }

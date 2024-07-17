@@ -52,6 +52,12 @@ public class Program
             _ => new XblConsole()
         };
 
+        if (!string.IsNullOrWhiteSpace(ApiKey) && !Guid.TryParse(ApiKey, out _))
+        {
+            ShowError("Invalid API key");
+            return;
+        }
+
         var client = new XblClient(ApiKey, output);
 
         if (Update == string.Empty) Update = "all";
@@ -80,9 +86,11 @@ public class Program
             return null;
         }
 
+        Title[] result = null;
+
         try
         {
-            return X360Profile.MapProfileToTitleArray(ProfilePath);
+            result = X360Profile.MapProfileToTitleArray(ProfilePath);
         }
         catch
         {
@@ -94,7 +102,7 @@ public class Program
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.White;
 
-        return null;
+        return result;
     }
 
     private static void ShowHelp()
