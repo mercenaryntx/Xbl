@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Xbl": {
+      "commandName": "Project",
+      "commandLineArgs": "-a=389a3a61-c98b-4a44-942f-0076f483841e -p=E00001D5D85ED487 -u -s"
+    }
+  }
+}
