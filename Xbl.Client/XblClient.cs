@@ -46,9 +46,9 @@ public class XblClient
         catch (HttpRequestException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Error! ");
+            Console.Write("Error: ");
             Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("OpenXBL API returned an error: ");
+            Console.Write("OpenXBL API returned an error ");
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write($"({(int?)ex.StatusCode}) {ex.StatusCode}");
         }
@@ -191,7 +191,17 @@ public class XblClient
 
     public static async Task<Title[]> LoadTitles()
     {
-        var json = await File.ReadAllTextAsync(Path.Combine(DataFolder, TitlesFile));
+        var path = Path.Combine(DataFolder, TitlesFile);
+        if (!File.Exists(path))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write("Error: ");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("Data files cannot be found. Please run an update first");
+            return Array.Empty<Title>();
+        }
+
+        var json = await File.ReadAllTextAsync(path);
         var a = JsonSerializer.Deserialize<AchievementTitles>(json);
         return a.Titles.OrderByDescending(t => t.Achievement.ProgressPercentage).ToArray();
     }

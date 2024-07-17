@@ -57,17 +57,7 @@ public class Program
         if (Update == string.Empty) Update = "all";
         if (Update is "all" or "achievements" or "stats") await client.Update(Update);
 
-        Title[] additionalTitles = null;
-        if (!string.IsNullOrWhiteSpace(ProfilePath))
-        {
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("Extracting Xbox 360 profile...");
-            additionalTitles = X360Profile.MapProfileToTitleArray(ProfilePath);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("OK");
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.White;
-        }
+        var additionalTitles = LoadXboxProfileData();
 
         if (Count) await client.Count(additionalTitles);
         if (Rarest) await client.RarestAchievements(Limit);
@@ -75,6 +65,36 @@ public class Program
         if (MostPlayed) await client.SpentMostTimeWith(Limit);
 
         Console.ForegroundColor = originalColor;
+    }
+
+    private static Title[] LoadXboxProfileData()
+    {
+        if (string.IsNullOrWhiteSpace(ProfilePath)) return null;
+
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.Write("Extracting Xbox 360 profile...");
+
+        if (!File.Exists(ProfilePath))
+        {
+            ShowError("Profile cannot be found");
+            return null;
+        }
+
+        try
+        {
+            return X360Profile.MapProfileToTitleArray(ProfilePath);
+        }
+        catch
+        {
+            ShowError("Profile cannot be loaded");
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("OK");
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.White;
+
+        return null;
     }
 
     private static void ShowHelp()
@@ -99,5 +119,13 @@ public class Program
         Console.WriteLine("  xbl -r");
         Console.WriteLine("  xbl -p=E00001D5D85ED487 -r");
         Console.WriteLine();
+    }
+
+    private static void ShowError(string error)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Write("Error: ");
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine(error);
     }
 }
