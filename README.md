@@ -32,6 +32,8 @@ TODO
 ```
 Xbl -c
 ```
+![image](https://github.com/user-attachments/assets/3a47e8b7-9830-4458-8321-3157c0b364e9)
+
 
 # Rarest achievements
 TODO
@@ -39,6 +41,7 @@ TODO
 ```
 Xbl -r
 ```
+![image](https://github.com/user-attachments/assets/357cc33e-bc28-4200-a160-1cdd6de9f7e2)
 
 # Most complete games
 TODO
@@ -46,6 +49,8 @@ TODO
 ```
 Xbl -m
 ```
+![image](https://github.com/user-attachments/assets/8948a72c-e6d8-4459-8645-b722acdb61ae)
+
 
 # Most played games
 TODO
@@ -53,16 +58,29 @@ TODO
 ```
 Xbl -s
 ```
+![image](https://github.com/user-attachments/assets/92a87181-e68a-4547-8d4b-f72abea1716a)
+
 
 # Xbox 360 Profile support
 TODO
 
 ```
-Xbl -p={Xbox360ProfilePath} -c
+Xbl -p={Xbox360ProfilePath} [-c|m]
 ```
+![image](https://github.com/user-attachments/assets/2aee471d-bcaf-47a0-90d3-0b7c7325ebf1)
+![image](https://github.com/user-attachments/assets/64bb7518-d8a7-40c7-9143-79625121e55f)
+
 
 # JSON output
 TODO
 
+```
+Xbl {YourCommand} -o=json
+```
+
 # Output limit
 TODO
+
+```
+Xbl {YourCommand} -l={MaxNumberOfItems}
+```
