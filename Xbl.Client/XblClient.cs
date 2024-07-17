@@ -50,7 +50,7 @@ public class XblClient
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("OpenXBL API returned an error ");
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write($"({(int?)ex.StatusCode}) {ex.StatusCode}");
+            Console.WriteLine($"({(int?)ex.StatusCode}) {ex.StatusCode}");
         }
     }
 
