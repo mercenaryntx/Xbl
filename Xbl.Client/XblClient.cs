@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Net.Http.Json;
+using System.Text.Json;
+using Xbl.Client.Models;
 using Xbl.Models;
 
 namespace Xbl;
@@ -17,7 +19,7 @@ public class XblClient
 
         _output = output;
         _client.DefaultRequestHeaders.Add("x-authorization", apiKey);
-        _client.BaseAddress = new Uri("https://xbl.io/api/v2/achievements/");
+        _client.BaseAddress = new Uri("https://xbl.io/api/v2/");
     }
 
     public async Task Update(string update)
@@ -26,7 +28,7 @@ public class XblClient
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Getting titles... ");
-            await GetTitles();
+            //await GetTitles();
             var titles = await LoadTitles();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write("OK");
@@ -40,7 +42,8 @@ public class XblClient
 
             if (update is "all" or "stats")
             {
-                await UpdateTitles(titles, title => $"{title.TitleId}.stats.json", "stats", GetStats);
+                await GetStatsBulk(titles);
+                //await UpdateTitles(titles, title => $"{title.TitleId}.stats.json", "stats", GetStats);
             }
         }
         catch (HttpRequestException ex)
@@ -104,8 +107,8 @@ public class XblClient
 
     public async Task MostComplete(int limit, IEnumerable<Title> additionalTitles = null)
     {
-        var titles = await LoadTitles();
-        if (additionalTitles != null) titles = titles.Union(additionalTitles).ToArray();
+        IEnumerable<Title> titles = await LoadTitles();
+        if (additionalTitles != null) titles = titles.Union(additionalTitles);
 
         var data = titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
@@ -184,7 +187,7 @@ public class XblClient
 
     public async Task GetTitles()
     {
-        var s = await _client.GetStringAsync("");
+        var s = await _client.GetStringAsync("achievements/");
         await File.WriteAllTextAsync(Path.Combine(DataFolder, TitlesFile), s);
     }
 
@@ -207,7 +210,7 @@ public class XblClient
 
     public async Task GetAchievements(string titleId)
     {
-        var s = await _client.GetStringAsync("title/" + titleId);
+        var s = await _client.GetStringAsync("achievements/title/" + titleId);
         await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{titleId}.json"), s);
     }
 
@@ -221,10 +224,59 @@ public class XblClient
         return details.Achievements;
     }
 
-    public async Task GetStats(string titleId)
+    //public async Task GetStats(string titleId)
+    //{
+    //    var s = await _client.GetStringAsync("achievements/stats/" + titleId);
+    //    await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{titleId}.stats.json"), s);
+    //}
+
+    public async Task GetStatsBulk(IEnumerable<Title> titles)
     {
-        var s = await _client.GetStringAsync("stats/" + titleId);
-        await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{titleId}.stats.json"), s);
+        var playerJson = await _client.GetStringAsync("player/summary");
+        var player = JsonSerializer.Deserialize<Player>(playerJson);
+        var xuid = player.People.First().XUID;
+
+        var pages = titles.Chunk(50).Select(c => new PlayerStatsRequest
+        {
+            XUIDs = new[] {xuid},
+            Stats = c.Select(x => new Stat {Name = "MinutesPlayed", TitleId = x.TitleId}).ToArray()
+        }).ToArray();
+
+        Console.ForegroundColor = ConsoleColor.White;
+        var cursorTop = Console.CursorTop;
+        Console.WriteLine($"Updating stats [{string.Join("", Enumerable.Range(0, pages.Length).Select(_ => " "))}]");
+        Console.ForegroundColor = ConsoleColor.Green;
+
+        var i = 0;
+        foreach (var page in pages)
+        {
+            var response = await _client.PostAsJsonAsync("player/stats", page);
+            var content = await response.Content.ReadAsStringAsync();
+            var stats = JsonSerializer.Deserialize<TitleStats>(content);
+
+            foreach (var stat in stats.StatListsCollection[0].Stats)
+            {
+                var titleStats = new TitleStats
+                {
+                    Groups = Array.Empty<TitleStatGroup>(),
+                    StatListsCollection = new[]
+                    {
+                        new StatList
+                        {
+                            Stats = new[]
+                            {
+                                stat
+                            }
+                        }
+                    }
+                };
+                var json = JsonSerializer.Serialize(titleStats);
+                await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{stat.TitleId}.stats.json"), json);
+            }
+            Console.SetCursorPosition(16 + i++, cursorTop);
+            Console.Write("■");
+        }
+        Console.SetCursorPosition(0, cursorTop+1);
     }
 
     public static async Task<Stat[]> LoadStats(string titleId)

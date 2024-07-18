@@ -27,21 +27,8 @@ public class XblConsole : IOutput
         {
             Console.ForegroundColor = ConsoleColor.Gray;
             Console.Write($"{++i:D3}. ");
-            var x = title.Devices.FirstOrDefault(d => d.StartsWith("Xbox")) ?? "XboxOne";
-            x = x.Replace("Xbox", "Xbox ");
-            switch (x)
-            {
-                case "Xbox Series":
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    break;
-                case "Xbox 360":
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    break;
-                default:
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    break;
-            }
-            Console.Write($"[{x}] {title.Name} ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"{title.Name} ");
             Console.ForegroundColor = ConsoleColor.Gray;
             Console.Write($"{title.Achievement.CurrentGamerscore}/{title.Achievement.TotalGamerscore} ");
             Console.ForegroundColor = ConsoleColor.Green;

@@ -30,7 +30,6 @@ public class X360Profile
                 }
                 else
                 {
-                    t.Devices = new[] { g.TotalGamerscore > 0 ? "Xbox360" : "Xbox" };
                     t.Achievement = new AchievementSummary
                     {
                         CurrentAchievements = g.UnlockedAchievementCount,
