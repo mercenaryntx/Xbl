@@ -1,6 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
-using Xbl.Client.Models;
+using Xbl.Client;
 using Xbl.Models;
 
 namespace Xbl;
@@ -28,7 +28,7 @@ public class XblClient
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Getting titles... ");
-            //await GetTitles();
+            await GetTitles();
             var titles = await LoadTitles();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write("OK");
@@ -203,8 +203,7 @@ public class XblClient
             return Array.Empty<Title>();
         }
 
-        var json = await File.ReadAllTextAsync(path);
-        var a = JsonSerializer.Deserialize<AchievementTitles>(json);
+        var a = await JsonHelper.FromFile<AchievementTitles>(path);
         return a.Titles.OrderByDescending(t => t.Achievement.ProgressPercentage).ToArray();
     }
 
@@ -219,8 +218,7 @@ public class XblClient
         var path = Path.Combine(DataFolder, $"{titleId}.json");
         if (!File.Exists(path)) return Array.Empty<Achievement>();
 
-        var json = await File.ReadAllTextAsync(path);
-        var details = JsonSerializer.Deserialize<TitleDetails>(json);
+        var details = await JsonHelper.FromFile<TitleDetails>(path);
         return details.Achievements;
     }
 
@@ -232,20 +230,28 @@ public class XblClient
 
     public async Task GetStatsBulk(IEnumerable<Title> titles)
     {
-        var playerJson = await _client.GetStringAsync("player/summary");
-        var player = JsonSerializer.Deserialize<Player>(playerJson);
-        var xuid = player.People.First().XUID;
+        //var playerJson = await _client.GetStringAsync("player/summary");
+        //var player = JsonSerializer.Deserialize<Player>(playerJson);
+        //var xuid = player.People.First().XUID;
 
-        var pages = titles.Chunk(50).Select(c => new PlayerStatsRequest
+        var changes = titles.Where(title =>
         {
-            XUIDs = new[] {xuid},
-            Stats = c.Select(x => new Stat {Name = "MinutesPlayed", TitleId = x.TitleId}).ToArray()
+            var x = new FileInfo(Path.Combine(DataFolder, $"{title.TitleId}.stats.json"));
+            return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
+        }).ToArray();
+
+        var a = await JsonHelper.FromFile<AchievementTitles>(Path.Combine(DataFolder, TitlesFile));
+        var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
+        {
+            XUIDs = new[] { a.Xuid },
+            Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.TitleId }).ToArray()
         }).ToArray();
 
         Console.ForegroundColor = ConsoleColor.White;
         var cursorTop = Console.CursorTop;
-        Console.WriteLine($"Updating stats [{string.Join("", Enumerable.Range(0, pages.Length).Select(_ => " "))}]");
-        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write("Updating stats ");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("0%");
 
         var i = 0;
         foreach (var page in pages)
@@ -273,8 +279,8 @@ public class XblClient
                 var json = JsonSerializer.Serialize(titleStats);
                 await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{stat.TitleId}.stats.json"), json);
             }
-            Console.SetCursorPosition(16 + i++, cursorTop);
-            Console.Write("■");
+            Console.SetCursorPosition(15, cursorTop);
+            Console.Write($"{++i*100/pages.Length}%");
         }
         Console.SetCursorPosition(0, cursorTop+1);
     }
@@ -286,8 +292,8 @@ public class XblClient
         {
             return Array.Empty<Stat>();
         }
-        var json = await File.ReadAllTextAsync(path);
-        var details = JsonSerializer.Deserialize<TitleStats>(json);
+
+        var details = await JsonHelper.FromFile<TitleStats>(path);
         return details.StatListsCollection.Length == 0 ? Array.Empty<Stat>() : details.StatListsCollection[0].Stats;
     }
 
