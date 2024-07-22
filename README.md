@@ -49,7 +49,7 @@ TODO
 ```
 Xbl -m
 ```
-![image](https://github.com/user-attachments/assets/8948a72c-e6d8-4459-8645-b722acdb61ae)
+![image](https://github.com/user-attachments/assets/9f1e3e89-c19a-4a66-a5a6-44404371b181)
 
 
 # Most played games
@@ -68,7 +68,6 @@ TODO
 Xbl -p={Xbox360ProfilePath} [-c|m]
 ```
 ![image](https://github.com/user-attachments/assets/2aee471d-bcaf-47a0-90d3-0b7c7325ebf1)
-![image](https://github.com/user-attachments/assets/64bb7518-d8a7-40c7-9143-79625121e55f)
 
 
 # JSON output
