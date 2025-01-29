@@ -248,10 +248,10 @@ public class XblClient
         }).ToArray();
 
         Console.ForegroundColor = ConsoleColor.White;
-        var cursorTop = Console.CursorTop;
         Console.Write("Updating stats ");
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("0%");
+        var cursor = Console.GetCursorPosition();
+        Console.Write("0%");
 
         var i = 0;
         foreach (var page in pages)
@@ -279,10 +279,10 @@ public class XblClient
                 var json = JsonSerializer.Serialize(titleStats);
                 await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{stat.TitleId}.stats.json"), json);
             }
-            Console.SetCursorPosition(15, cursorTop);
+            Console.SetCursorPosition(cursor.Left, cursor.Top);
             Console.Write($"{++i*100/pages.Length}%");
         }
-        Console.SetCursorPosition(0, cursorTop+1);
+        Console.WriteLine();
     }
 
     public static async Task<Stat[]> LoadStats(string titleId)
