@@ -1,8 +1,8 @@
-﻿using Xbl.Models;
+﻿using Xbl.Client.Models;
 using Xbl.Xbox360.Io.Stfs;
 using Xbl.Xbox360.Models;
 
-namespace Xbl;
+namespace Xbl.Client;
 
 public class X360Profile
 {

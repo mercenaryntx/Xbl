@@ -1,10 +1,11 @@
-﻿using Xbl.Models;
+﻿using Xbl.Client.Models;
 
-namespace Xbl;
+namespace Xbl.Client;
 
 public interface IOutput
 {
-    void RarestAchievements(IEnumerable<RarestAchievementItem> data);
+    void RarestAchievements(IEnumerable<Records> data);
+    void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity);
     void MostComplete(IEnumerable<Title> data);
     void SpentMostTimeWith(IEnumerable<MinutesPlayed> data);
 }

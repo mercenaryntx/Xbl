@@ -1,9 +1,8 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
-using Xbl.Client;
-using Xbl.Models;
+using Xbl.Client.Models;
 
-namespace Xbl;
+namespace Xbl.Client;
 
 public class XblClient
 {
@@ -96,13 +95,38 @@ public class XblClient
             .OrderByDescending(t => t.Achievement.ProgressPercentage)
             .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
 
-        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new RarestAchievementItem(
+        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new Records(
             kvp.Key.Name,
             a.Name,
             a.Rarity.CurrentPercentage
         ))).OrderBy(a => a.Percentage).Take(limit);
 
         _output.RarestAchievements(rarest);
+    }
+
+    public async Task WeightedRarity(int limit)
+    {
+        var titles = await LoadTitles();
+        var data = titles
+            .OrderByDescending(t => t.Achievement.ProgressPercentage)
+            .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
+
+        var mostRare = data.Select(t => new WeightedAchievementItem(
+            t.Key.Name,
+            t.Key.Achievement,
+            t.Value.Count(),
+            t.Value.Count(a => a.ProgressState == "Achieved"),
+            t.Value.Count(a => a.ProgressState == "Achieved" && a.Rarity.CurrentCategory == "Rare"),
+            t.Value.Where(a => a.ProgressState == "Achieved")
+                .Sum(a =>
+                {
+                    double score = int.Parse(a.Rewards.FirstOrDefault(r => r.ValueType == "Int")?.Value ?? "0");
+                    var weightFactor = Math.Exp((100 - a.Rarity.CurrentPercentage) / 5.0);
+                    return score / t.Key.Achievement.TotalGamerscore * weightFactor;
+                })
+        )).OrderByDescending(a => a.Weight).Take(limit);
+
+        _output.WeightedRarity(mostRare);
     }
 
     public async Task MostComplete(int limit, IEnumerable<Title> additionalTitles = null)

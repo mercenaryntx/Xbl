@@ -1,13 +1,18 @@
 ﻿using System.Text.Json;
-using Xbl.Models;
+using Xbl.Client.Models;
 
-namespace Xbl;
+namespace Xbl.Client;
 
 public class XblJson : IOutput
 {
-    public void RarestAchievements(IEnumerable<RarestAchievementItem> rarest)
+    public void RarestAchievements(IEnumerable<Records> rarest)
     {
         Write(rarest, nameof(rarest));
+    }
+
+    public void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity)
+    {
+        Write(weightedRarity, nameof(weightedRarity));
     }
 
     public void MostComplete(IEnumerable<Title> mostComplete)

@@ -1,10 +1,10 @@
-﻿using Xbl.Models;
+﻿using Xbl.Client.Models;
 
-namespace Xbl;
+namespace Xbl.Client;
 
 public class XblConsole : IOutput
 {
-    public void RarestAchievements(IEnumerable<RarestAchievementItem> data)
+    public void RarestAchievements(IEnumerable<Records> data)
     {
         var i = 0;
         foreach (var (title, achievement, currentPercentage) in data)
@@ -17,6 +17,22 @@ public class XblConsole : IOutput
             Console.Write($"{achievement} ");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"({currentPercentage:F}%)");
+        }
+    }
+
+    public void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity)
+    {
+        var i = 0;
+        foreach (var (title, summary, totalCount, achievedCount, rareCount, weight) in weightedRarity)
+        {
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.Write($"{++i:D3}. ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"{title} ");
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.Write($"{summary.CurrentGamerscore}/{summary.TotalGamerscore} {rareCount}/{achievedCount}/{totalCount} ");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"({weight:F})");
         }
     }
 

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Xbl.Models;
+namespace Xbl.Client.Models;
 
 public class AchievementTitles
 {
