@@ -5,7 +5,7 @@ namespace Xbl.Client;
 
 public class XblJson : IOutput
 {
-    public void RarestAchievements(IEnumerable<Records> rarest)
+    public void RarestAchievements(IEnumerable<RarestAchievementItem> rarest)
     {
         Write(rarest, nameof(rarest));
     }

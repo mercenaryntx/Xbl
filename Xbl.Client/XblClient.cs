@@ -95,7 +95,7 @@ public class XblClient
             .OrderByDescending(t => t.Achievement.ProgressPercentage)
             .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
 
-        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new Records(
+        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new RarestAchievementItem(
             kvp.Key.Name,
             a.Name,
             a.Rarity.CurrentPercentage

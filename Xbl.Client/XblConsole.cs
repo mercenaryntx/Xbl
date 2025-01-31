@@ -4,7 +4,7 @@ namespace Xbl.Client;
 
 public class XblConsole : IOutput
 {
-    public void RarestAchievements(IEnumerable<Records> data)
+    public void RarestAchievements(IEnumerable<RarestAchievementItem> data)
     {
         var i = 0;
         foreach (var (title, achievement, currentPercentage) in data)
