@@ -46,9 +46,9 @@ public class XblConsole : IOutput
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write($"{title.Name} ");
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write($"{title.Achievement.CurrentGamerscore}/{title.Achievement.TotalGamerscore} ");
+            Console.Write($"{title.Achievement?.CurrentGamerscore ?? 0}/{title.Achievement?.TotalGamerscore ?? 0} ");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"({title.Achievement.ProgressPercentage:F}%)");
+            Console.WriteLine($"({title.Achievement?.ProgressPercentage ?? 0:F}%)");
         }
 
     }
