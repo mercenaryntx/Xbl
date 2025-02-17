@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using Spectre.Console;
 using Xbl.Client.Models;
 
 namespace Xbl.Client;
@@ -25,34 +26,24 @@ public class XblClient
     {
         try
         {
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("Getting titles... ");
+            AnsiConsole.Markup("[white]Getting titles... [/]");
             await GetTitles();
             var titles = await LoadTitles();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("OK");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($" [{titles.Length}]");
+            AnsiConsole.MarkupLineInterpolated($"[#16c60c]OK[/] [white][[{titles.Length}]][/]");
 
             if (update is "all" or "achievements")
             {
                 await UpdateTitles(titles, title => $"{title.TitleId}.json", "achievements", GetAchievements);
             }
-
             if (update is "all" or "stats")
             {
                 await GetStatsBulk(titles);
-                //await UpdateTitles(titles, title => $"{title.TitleId}.stats.json", "stats", GetStats);
             }
         }
         catch (HttpRequestException ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Error: ");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("OpenXBL API returned an error ");
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"({(int?)ex.StatusCode}) {ex.StatusCode}");
+            Console.WriteLine();
+            AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]OpenXBL API returned an error [/] [red]({(int?)ex.StatusCode}) {ex.StatusCode}[/]");
         }
     }
 
@@ -64,27 +55,14 @@ public class XblClient
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("Found ");
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.Write(changes.Length);
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($" {type} changes");
+        AnsiConsole.MarkupLineInterpolated($"[white]Found [/] [cyan1]{changes.Length}[/] [white]{type} changes[/]");
 
         for (var i = 0; i < changes.Length; i++)
         {
             var title = changes[i];
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write($"[{i + 1:D3}/{changes.Length:D3}] ");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("Updating ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write(title.Name);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("... ");
+            AnsiConsole.MarkupInterpolated($"[silver][[{i + 1:D3}/{changes.Length:D3}]][/] [white]Updating [/] [cyan1]{title.Name}[/][white]... [/]");
             await updateLogic(title.TitleId);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("OK");
+            AnsiConsole.MarkupLine("[#16c60c]OK[/]");
         }
     }
 
@@ -161,50 +139,43 @@ public class XblClient
     public async Task Count(IEnumerable<Title> additionalTitles = null)
     {
         var titles = await LoadTitles();
-        RenderProfile(titles, "Live Profile");
+        var a = additionalTitles?.ToArray();
+        var table = new Table();
+        table.AddColumn("[bold]Profile[/]");
+        table.AddColumn("[bold]Games[/]", c =>
+        {
+            c.Alignment = Justify.Right;
+            if (a == null) return;
+            var allTitles = titles.Concat(a).ToArray();
+            var g = allTitles.GroupBy(t => t.Name);
+            c.Footer($"{allTitles.Length}|{g.Count()}");
+
+        });
+        table.AddColumn("[bold]Achievements[/]", c => c.Alignment = Justify.Right);
+        table.AddColumn("[bold]Gamerscore[/]", c => c.Alignment = Justify.Right);
+        table.AddColumn("[bold]Hours played[/]", c => c.Alignment = Justify.Right);
+
+        RenderProfile(table, titles, "Xbox Live", "green3_1");
 
         if (additionalTitles != null)
         {
-            var a = additionalTitles.ToArray();
-            RenderProfile(a, "Xbox 360 Profile");
-
-            var allTitles = titles.Concat(a);
-            var g = allTitles.GroupBy(t => t.Name).ToArray();
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("All titles: ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(allTitles.Count());
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("Unique titles: ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(g.Length);
+            RenderProfile(table, a, "Xbox 360", "cyan1");
+            table.ShowFooters = true;
         }
+
+        AnsiConsole.Write(table);
     }
 
-    private static void RenderProfile(Title[] titles, string prefix)
+    private static void RenderProfile(Table table, Title[] titles, string prefix, string color)
     {
-        var c1 = titles.Length;
-        var count = titles.Sum(t => t.Achievement?.CurrentAchievements);
-        var sum = titles.Sum(t => t.Achievement?.CurrentGamerscore);
+        var profile = $"[{color}]{prefix}[/]";
+        var c1 = $"[{color}]{titles.Length}[/]";
+        var count = $"[{color}]{titles.Sum(t => t.Achievement?.CurrentAchievements)}[/]";
+        var sum = $"[{color}]{titles.Sum(t => t.Achievement?.CurrentGamerscore)}[/]";
         var played = titles.Sum(t => LoadStats(t.TitleId).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0);
+        var hours = $"[{color}]{TimeSpan.FromMinutes(played).TotalHours:0.0}[/]";
 
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"{prefix}:");
-        RenderProfileLine(c1, "games");
-        RenderProfileLine(count, "unlocked achievements");
-        RenderProfileLine(sum, "gamerscore");
-        RenderProfileLine($"{TimeSpan.FromMinutes(played).TotalHours:0.0}", "hours played");
-        Console.WriteLine();
-    }
-
-    private static void RenderProfileLine(object value, string suffix)
-    {
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.Write(" - ");
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.Write(value);
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.WriteLine($" {suffix}");
+        table.AddRow(profile, c1, count, sum, hours);
     }
 
     #region Infra
@@ -220,10 +191,7 @@ public class XblClient
         var path = Path.Combine(DataFolder, TitlesFile);
         if (!File.Exists(path))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Error: ");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("Data files cannot be found. Please run an update first");
+            AnsiConsole.MarkupLine("[red]Error:[/] [silver]Data files cannot be found. Please run an update first[/]");
             return Array.Empty<Title>();
         }
 
@@ -271,8 +239,7 @@ public class XblClient
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.TitleId }).ToArray()
         }).ToArray();
 
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("Updating stats ");
+        AnsiConsole.MarkupLineInterpolated($"[white]Updating stats[/] ");
         Console.ForegroundColor = ConsoleColor.Yellow;
         var cursor = Console.GetCursorPosition();
         Console.Write("0%");

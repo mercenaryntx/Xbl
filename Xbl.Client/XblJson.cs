@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Spectre.Console;
 using Xbl.Client.Models;
 
 namespace Xbl.Client;
@@ -30,11 +31,6 @@ public class XblJson : IOutput
         var json = JsonSerializer.Serialize(data);
         var fileName = $"{prefix}-{DateTime.Now.Ticks}.json";
         File.WriteAllText(fileName, json);
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.Write("Output file ");
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write(fileName);
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.WriteLine(" created.");
+        AnsiConsole.MarkupLineInterpolated($"[silver]Output file[/] [#16c60c]{fileName}[/] [silver]created.[/]");
     }
 }
