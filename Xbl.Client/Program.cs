@@ -1,4 +1,5 @@
-﻿using Utility.CommandLine;
+﻿using System.Diagnostics;
+using Utility.CommandLine;
 using Xbl.Client.Models;
 
 namespace Xbl.Client;
@@ -91,6 +92,7 @@ public class Program
         }
 
         Title[] result = null;
+        var sw = Stopwatch.StartNew();
 
         try
         {
@@ -102,7 +104,9 @@ public class Program
         }
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("OK");
+        Console.Write("OK ");
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine($"({sw.ElapsedMilliseconds}ms)");
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.White;
 

@@ -34,7 +34,7 @@ namespace Xbl.Xbox360.Io.Stfs
 
         protected override void Parse()
         {
-            FirstHashTableAddress = ((HeaderSize + 0x0FFF) & 0x7FFFF000);
+            FirstHashTableAddress = (HeaderSize + 0x0FFF) & 0x7FFFF000;
             Sex = (VolumeDescriptor.BlockSeparation & 1) == 1 ? Sex.Female : Sex.Male;
             if (VolumeDescriptor.AllocatedBlockCount >= 0x70E4)
                 throw new NotSupportedException("STFS package too big to handle!");
@@ -42,7 +42,7 @@ namespace Xbl.Xbox360.Io.Stfs
 
             NotifyActionDuration("Collect hash entries", () =>
                                                        {
-                                                           UnallocatedHashEntries = new List<int>();
+                                                           UnallocatedHashEntries = [];
                                                            TopTable = GetLevelNHashTable(0, TopLevel);
                                                            if (TopLevel == 1)
                                                            {
@@ -234,7 +234,7 @@ namespace Xbl.Xbox360.Io.Stfs
                         fe.FileEntryAddress = addr;
                     fe.EntryIndex = (x*0x40) + i;
 
-                    if (fe.Name != String.Empty)
+                    if (fe.Name != string.Empty)
                         fl.Add(fe);
                 }
                 var he = GetHashEntry(block);
@@ -329,7 +329,7 @@ namespace Xbl.Xbox360.Io.Stfs
 
         #region Extract
 
-        private void ExtractProfile()
+        public void ExtractProfile()
         {
             NotifyActionDuration("Extract Profile", () =>
             {

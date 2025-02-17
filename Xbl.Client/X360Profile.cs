@@ -1,4 +1,5 @@
-﻿using Xbl.Client.Models;
+﻿using System.Diagnostics;
+using Xbl.Client.Models;
 using Xbl.Xbox360.Io.Stfs;
 using Xbl.Xbox360.Models;
 
@@ -8,40 +9,70 @@ public class X360Profile
 {
     public static Title[] MapProfileToTitleArray(string profilePath)
     {
-        var profile = ModelFactory.GetModel<StfsPackage>(File.ReadAllBytes(profilePath));
-        profile.ExtractContent();
+        var bytes = File.ReadAllBytes(profilePath);
+        var profile = ModelFactory.GetModel<StfsPackage>(bytes);
+        profile.ExtractProfile();
 
-        return profile.Games.Values.Select(g =>
-        {
-            g.Parse();
-
-            var t = new Title
+        var result = profile
+            .ProfileInfo
+            .TitlesPlayed
+            .Where(g => !string.IsNullOrEmpty(g.TitleName))
+            .Select(g =>
             {
-                TitleId = g.TitleId,
-                Name = g.Title,
-                Type = "Game"
-            };
-
-            unchecked
-            {
-                if (g.Achievements.Any(a => a.Gamerscore is < byte.MinValue or > byte.MaxValue))
+                var t = new Title
                 {
-                    //Console.WriteLine(g.Title);
-                }
-                else
-                {
-                    t.Achievement = new AchievementSummary
+                    TitleId = g.TitleCode,
+                    Name = g.TitleName,
+                    Type = "Game",
+                    Achievement = new AchievementSummary
                     {
-                        CurrentAchievements = g.UnlockedAchievementCount,
-                        CurrentGamerscore = g.Gamerscore,
-                        ProgressPercentage = g.TotalGamerscore > 0 ? 100 * g.Gamerscore / g.TotalGamerscore : 0,
-                        TotalGamerscore = g.TotalGamerscore,
+                        CurrentAchievements = g.AchievementsUnlocked,
+                        CurrentGamerscore = g.GamerscoreUnlocked,
+                        ProgressPercentage = g.TotalGamerScore > 0 ? 100 * g.GamerscoreUnlocked / g.TotalGamerScore : 0,
+                        TotalGamerscore = g.TotalGamerScore,
                         TotalAchievements = g.AchievementCount
-                    };
-                }
-            }
+                    }
+                };
 
-            return t;
-        }).ToArray();
+                return t;
+
+            })
+            .ToArray();
+
+        //var p = profile.ProfileInfo.TitlesPlayed.Where(t => !string.IsNullOrEmpty(t.TitleName) && t.AchievementsUnlocked > 0).Select(t => t.TitleCode).ToHashSet();
+
+        //var result = profile.Games.Values.Select(g =>
+        //{
+        //    if (p.Contains(g.TitleId)) g.Parse();
+
+        //    var t = new Title
+        //    {
+        //        TitleId = g.TitleId,
+        //        Name = g.Title,
+        //        Type = "Game"
+        //    };
+
+        //    unchecked
+        //    {
+        //        if (g.Achievements.Any(a => a.Gamerscore is < byte.MinValue or > byte.MaxValue))
+        //        {
+        //            //Console.WriteLine(g.Title);
+        //        }
+        //        else
+        //        {
+        //            t.Achievement = new AchievementSummary
+        //            {
+        //                CurrentAchievements = g.UnlockedAchievementCount,
+        //                CurrentGamerscore = g.Gamerscore,
+        //                ProgressPercentage = g.TotalGamerscore > 0 ? 100 * g.Gamerscore / g.TotalGamerscore : 0,
+        //                TotalGamerscore = g.TotalGamerscore,
+        //                TotalAchievements = g.AchievementCount
+        //            };
+        //        }
+        //    }
+
+        //    return t;
+        //}).ToArray();
+        return result;
     }
 }

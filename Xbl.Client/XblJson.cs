@@ -17,7 +17,7 @@ public class XblJson : IOutput
 
     public void MostComplete(IEnumerable<Title> mostComplete)
     {
-        Write(mostComplete, nameof(mostComplete));
+        Write(mostComplete.Select(m => new { m.Name, m.Achievement?.CurrentGamerscore, m.Achievement?.TotalGamerscore, m.Achievement?.ProgressPercentage }), nameof(mostComplete));
     }
 
     public void SpentMostTimeWith(IEnumerable<MinutesPlayed> minutesPlayed)
