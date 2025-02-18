@@ -7,7 +7,7 @@ public class Program
 {
     private static async Task<int> Main(string[] args)
     {
-        AnsiConsole.MarkupLine("[white]Xbox Achievement Stats v1.0[/]");
+        AnsiConsole.MarkupLine("[white]Xbox Achievement Stats v2.0[/]");
         Console.WriteLine();
 
         var app = new CommandApp<XblApp>();
@@ -15,8 +15,9 @@ public class Program
         {
             c.SetApplicationName("xbl");
             c.AddExample("-a={apiKey} -u");
-            c.AddExample("-r");
-            c.AddExample("-p=E00001D5D85ED487 -m");
+            c.AddExample("-q=rarity");
+            c.AddExample("-p=E00001D5D85ED487 -q=completeness -l=1000 -o=json");
+            c.AddExample("-s=achievements -k=stackedareachart.kql");
         });
 
         args = args.Length == 0 

@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using Xbl.Client.Models;
+﻿using Xbl.Client.Models;
+using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Stfs;
 using Xbl.Xbox360.Models;
 
@@ -11,9 +11,10 @@ public class X360Profile
     {
         var bytes = File.ReadAllBytes(profilePath);
         var profile = ModelFactory.GetModel<StfsPackage>(bytes);
+
         profile.ExtractProfile();
 
-        var result = profile
+        return profile
             .ProfileInfo
             .TitlesPlayed
             .Where(g => !string.IsNullOrEmpty(g.TitleName))
@@ -38,41 +39,80 @@ public class X360Profile
 
             })
             .ToArray();
+    }
 
-        //var p = profile.ProfileInfo.TitlesPlayed.Where(t => !string.IsNullOrEmpty(t.TitleName) && t.AchievementsUnlocked > 0).Select(t => t.TitleCode).ToHashSet();
+    public static Achievement[] MapProfileToAchievementArray(string profilePath)
+    {
+        var bytes = File.ReadAllBytes(profilePath);
+        var profile = ModelFactory.GetModel<StfsPackage>(bytes);
 
-        //var result = profile.Games.Values.Select(g =>
-        //{
-        //    if (p.Contains(g.TitleId)) g.Parse();
+        profile.ExtractGames();
+        var p = profile.ProfileInfo.TitlesPlayed.Where(t => !string.IsNullOrEmpty(t.TitleName) && t.AchievementsUnlocked > 0).Select(t => t.TitleCode).ToHashSet();
 
-        //    var t = new Title
-        //    {
-        //        TitleId = g.TitleId,
-        //        Name = g.Title,
-        //        Type = "Game"
-        //    };
+        var first = true;
+        return profile.Games.Values.SelectMany(g =>
+        {
+            if (p.Contains(g.TitleId)) g.Parse();
 
-        //    unchecked
-        //    {
-        //        if (g.Achievements.Any(a => a.Gamerscore is < byte.MinValue or > byte.MaxValue))
-        //        {
-        //            //Console.WriteLine(g.Title);
-        //        }
-        //        else
-        //        {
-        //            t.Achievement = new AchievementSummary
-        //            {
-        //                CurrentAchievements = g.UnlockedAchievementCount,
-        //                CurrentGamerscore = g.Gamerscore,
-        //                ProgressPercentage = g.TotalGamerscore > 0 ? 100 * g.Gamerscore / g.TotalGamerscore : 0,
-        //                TotalGamerscore = g.TotalGamerscore,
-        //                TotalAchievements = g.AchievementCount
-        //            };
-        //        }
-        //    }
+            unchecked
+            {
+                var bugReported = false;
+                return g.Achievements.Select(a =>
+                {
+                    try
+                    {
+                        if (a.Gamerscore < 0 || a.AchievementId < 0) throw new Exception();
 
-        //    return t;
-        //}).ToArray();
-        return result;
+                        return new Achievement
+                        {
+                            Id = a.AchievementId.ToString(),
+                            Name = a.Name,
+                            TitleAssociations = new[]
+                            {
+                                new TitleAssociation
+                                {
+                                    Name = g.Title
+                                }
+                            },
+                            ProgressState = a.IsUnlocked ? "Achieved" : "NotStarted",
+                            Progression = new Progression
+                            {
+                                TimeUnlocked = a.IsUnlocked ? a.UnlockTime : DateTime.MinValue
+                            },
+                            Platforms = new[] {"Xbox360"},
+                            IsSecret = a.IsSecret,
+                            Description = a.UnlockedDescription,
+                            LockedDescription = a.LockedDescription,
+                            ProductId = g.TitleId,
+                            AchievementType = "Persistent",
+                            ParticipationType = "Individual",
+                            Rewards = new[]
+                            {
+                                new Reward
+                                {
+                                    Value = a.Gamerscore.ToString(),
+                                    Type = "Gamerscore",
+                                    ValueType = "Int"
+                                }
+                            }
+                        };
+                    }
+                    catch
+                    {
+                        if (!bugReported)
+                        {
+                            if (first)
+                            {
+                                Console.WriteLine();
+                                first = false;
+                            }
+                            Console.WriteLine($"{g.Title} is buggy");
+                            bugReported = true;
+                        }
+                        return null;
+                    }
+                });
+            }
+        }).Where(a => a != null).ToArray();
     }
 }

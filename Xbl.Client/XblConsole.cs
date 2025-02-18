@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using KustoLoco.Core;
+using KustoLoco.Rendering;
 using Spectre.Console;
 using Xbl.Client.Models;
 
@@ -92,31 +94,27 @@ public class XblConsole : IOutput
         }
 
         AnsiConsole.Write(chart);
-
-        //var table = new Table();
-        //table.AddColumn("[bold]No.[/]");
-        //table.AddColumn("[bold]Title[/]");
-        //table.AddColumn("[bold]Hours[/]");
-
-        //var i = 0;
-        //foreach (var (title, played) in data)
-        //{
-        //    table.AddRow(
-        //        $"[silver]{++i:D3}[/]",
-        //        $"[cyan1]{title}[/]",
-        //        $"[silver]{TimeSpan.FromMinutes(played).TotalHours:#.0}[/]"
-        //    );
-        //}
-        //AnsiConsole.Write(table);
     }
 
-    public static Color GenerateColor(string input)
+    public void KustoQueryResult(KustoQueryResult result)
     {
-        using var md5 = MD5.Create();
-        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
-        byte r = hash[0];
-        byte g = hash[1];
-        byte b = hash[2];
-        return new Color(r, g, b);
+        var table = new Table();
+        foreach (var column in result.ColumnDefinitions()) table.AddColumn(column.Name);
+
+        foreach (var row in result.EnumerateRows())
+        {
+            var rowCells = row.Select(CellToString).ToArray();
+            table.AddRow(rowCells);
+        }
+
+        AnsiConsole.Write(table);
+
+        KustoResultRenderer.RenderChartInBrowser(result);
     }
+
+    private static string CellToString(object cell)
+    {
+        return cell?.ToString() ?? "<null>";
+    }
+
 }

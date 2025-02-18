@@ -1,7 +1,14 @@
 ﻿using System.Diagnostics;
+using System.Net.NetworkInformation;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Json;
 using Xbl.Client.Models;
+using Xbl.Xbox360.Models;
 
 namespace Xbl.Client;
 
@@ -9,51 +16,100 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, XblSettings settings)
     {
-        //if (settings.Help || context.Arguments.Count == 0) ShowHelp();
-
-        IOutput output = settings.Output?.ToLower() switch
+        if (settings.ExtendedHelp)
         {
-            "json" => new XblJson(),
-            _ => new XblConsole()
-        };
+            return PrintExtendedHelp();
+        }
 
         if (!string.IsNullOrWhiteSpace(settings.ApiKey) && !Guid.TryParse(settings.ApiKey, out _))
         {
             return ShowError("Invalid API key");
         }
 
-        var client = new XblClient(settings.ApiKey, output);
+        var client = new XblClient(settings);
 
-        var update = settings.Update;
-        if (update == string.Empty) update = "all";
-        if (update is "all" or "achievements" or "stats")
+        var error = await Update(client);
+        if (error < 0) return error;
+
+        error = LoadXbox360Profile(client);
+        if (error < 0) return error;
+
+        if (!string.IsNullOrEmpty(settings.KustoQueryPath))
         {
-            if (string.IsNullOrWhiteSpace(settings.ApiKey))
+            if (!File.Exists(settings.KustoQueryPath))
             {
-                return ShowError("API key is not set");
+                return ShowError("KQL file cannot be found");
             }
-            await client.Update(update);
+
+            return await client.RunKustoQuery();
         }
 
-        Title[] additionalTitles = null;
-        if (!string.IsNullOrWhiteSpace(settings.ProfilePath))
+        switch (settings.Query)
         {
-            var error = LoadXboxProfileData(settings, out additionalTitles);
-            if (error < 0) return error;
+            case null:
+                break;
+            case "summary":
+                await client.Count();
+                break;
+            case "rarity":
+                await client.RarestAchievements();
+                break;
+            case "completeness":
+                await client.MostComplete();
+                break;
+            case "time":
+                await client.SpentMostTimeWith();
+                break;
+            case "weighted-rarity":
+                await client.WeightedRarity();
+                break;
+            default:
+                return ShowError("Unknown query alias");
         }
-
-        if (settings.Count) await client.Count(additionalTitles);
-        if (settings.Rarest) await client.RarestAchievements(settings.Limit);
-        if (settings.MostComplete) await client.MostComplete(settings.Limit, additionalTitles);
-        if (settings.MostPlayed) await client.SpentMostTimeWith(settings.Limit);
-        if (settings.WeightedAchievements) await client.WeightedRarity(settings.Limit);
 
         return 0;
     }
 
-    private static int LoadXboxProfileData(XblSettings settings, out Title[] result)
+    private static async Task<int> Update(XblClient client)
     {
-        result = null;
+        if (client.Settings.Update is not ("all" or "achievements" or "stats")) return 0;
+
+        if (string.IsNullOrWhiteSpace(client.Settings.ApiKey))
+        {
+            return ShowError("API key is not set");
+        }
+        return await client.Update(client.Settings.Update);
+    }
+
+    private static int LoadXbox360Profile(XblClient client)
+    {
+        if (!string.IsNullOrWhiteSpace(client.Settings.ProfilePath))
+        {
+            var load = !string.IsNullOrEmpty(client.Settings.KustoQueryPath)
+                ? client.Settings.KustoQuerySource ?? "titles"
+                : client.Settings.Query is "summary" or "completeness"
+                    ? "titles"
+                    : "";
+
+            int error;
+            switch (load)
+            {
+                case "achievements":
+                    error = LoadXboxProfileData(client.Settings, path => client.AdditionalAchievements = X360Profile.MapProfileToAchievementArray(path));
+                    if (error < 0) return error;
+                    break;
+                case "titles":
+                    error = LoadXboxProfileData(client.Settings, path => client.AdditionalTitles = X360Profile.MapProfileToTitleArray(path));
+                    if (error < 0) return error;
+                    break;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int LoadXboxProfileData(XblSettings settings, Action<string> action)
+    {
         AnsiConsole.Markup("[silver]Extracting Xbox 360 profile... [/]");
 
         if (!File.Exists(settings.ProfilePath))
@@ -65,7 +121,7 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
 
         try
         {
-            result = X360Profile.MapProfileToTitleArray(settings.ProfilePath);
+            action(settings.ProfilePath);
         }
         catch
         {
@@ -82,6 +138,106 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
     {
         AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]{error}[/]");
         return -1;
+    }
+
+    private static int PrintExtendedHelp()
+    {
+        var titles = PrintJsonPanel(GetTitleExample(), "titles");
+        var stats = PrintJsonPanel(GetStatExample(), "stats");
+        var achievements = PrintJsonPanel(GetAchievementExample(), "achievements");
+        AnsiConsole.Write(new Columns(titles, stats, achievements));
+        return 0;
+    }
+
+    private static Panel PrintJsonPanel(object o, string header)
+    {
+        return new Panel(GetJsonText(o))
+            .Header(header)
+            .Collapse()
+            .BorderColor(new Color(249, 251, 165));
+    }
+
+    private static KqlTitle GetTitleExample()
+    {
+        return new KqlTitle
+        {
+            TitleId = "1915865634",
+            Name = "Lorem Ipsum: The Game",
+            Devices = "PC|Xbox360|XboxOne|XboxSeries",
+            CurrentAchievements = 18,
+            TotalAchievements = 0,
+            CurrentGamerscore = 560,
+            TotalGamerscore = 1000,
+            ProgressPercentage = 56,
+            LastTimePlayed = DateTime.Parse("2025-02-02T15:54:38.4848326Z")
+        };
+    }
+
+    private static KqlMinutesPlayed GetStatExample()
+    {
+        return new KqlMinutesPlayed
+        {
+            XUID = "2533274845176708",
+            SCID = "40950100-bb3f-4769-906a-5eae3b67330a",
+            TitleId = "996619018",
+            Minutes = 341
+        };
+    }
+
+    private static KqlAchievement GetAchievementExample()
+    {
+        return new KqlAchievement
+        {
+            Name = "Lorem ipsum",
+            TitleId = "10027721",
+            TitleName = "dolor sit amet",
+            ProgressState = "Achieved",
+            TimeUnlocked = DateTime.Parse("2016-09-11T12:25:10.6860000Z"),
+            Platform = "Xbox360|XboxOne|XboxSeries",
+            Description = "Lorem ipsum",
+            LockedDescription = "dolor sit amet",
+            Gamerscore = 100,
+            IsRare = false,
+            RarityPercentage = 12.34,
+        };
+    }
+
+    private static JsonText GetJsonText(object o)
+    {
+        var green = new Color(74, 222, 128);
+        var blue = new Color(14, 165, 233);
+        var red = new Color(244, 63, 94);
+        var yellow = new Color(249, 251, 165);
+
+        return new JsonText(JsonSerializer.Serialize(o, new JsonSerializerOptions
+        {
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver
+            {
+                Modifiers =
+                {
+                    (JsonTypeInfo typeInfo) =>
+                    {
+                        foreach (var property in typeInfo.Properties)
+                        {
+                            var pi = property.AttributeProvider as PropertyInfo;
+                            if (pi != null) property.Name = pi.Name;
+                        }
+                    }
+                }
+            }
+        }))
+        {
+            BooleanStyle = green,
+            NumberStyle = green,
+            BracesStyle = Color.Silver,
+            BracketsStyle = Color.Silver,
+            MemberStyle = blue,
+            ColonStyle = yellow,
+            CommaStyle = Color.Silver,
+            StringStyle = red,
+            NullStyle = Color.Silver
+        };
+
     }
 
 }

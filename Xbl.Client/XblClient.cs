@@ -1,6 +1,11 @@
-﻿using System.Net.Http.Json;
+﻿using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Text.Json;
+using AutoMapper;
+using KustoLoco.Core;
 using Spectre.Console;
+using Xbl.Client.Mapping;
 using Xbl.Client.Models;
 
 namespace Xbl.Client;
@@ -12,17 +17,35 @@ public class XblClient
 
     private readonly HttpClient _client = new();
     private readonly IOutput _output;
+    private readonly int _limit;
+    private IMapper _mapper;
 
-    public XblClient(string apiKey, IOutput output)
+    public XblSettings Settings { get; }
+    public Title[] AdditionalTitles { get; set; }
+    public Achievement[] AdditionalAchievements { get; set; }
+
+    public XblClient(XblSettings settings)
     {
+        Settings = settings;
+        _limit = settings.Limit == 0 ? 50 : settings.Limit;
+        _output = settings.Output?.ToLower() switch
+        {
+            "json" => new XblJson(),
+            _ => new XblConsole()
+        };
+
         if (!Directory.Exists(DataFolder)) Directory.CreateDirectory(DataFolder);
 
-        _output = output;
-        _client.DefaultRequestHeaders.Add("x-authorization", apiKey);
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
+        _mapper = config.CreateMapper();
+
+        _client.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
         _client.BaseAddress = new Uri("https://xbl.io/api/v2/");
     }
 
-    public async Task Update(string update)
+    #region Update
+
+    public async Task<int> Update(string update)
     {
         try
         {
@@ -39,11 +62,14 @@ public class XblClient
             {
                 await GetStatsBulk(titles);
             }
+
+            return 0;
         }
         catch (HttpRequestException ex)
         {
             Console.WriteLine();
             AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]OpenXBL API returned an error [/] [red]({(int?)ex.StatusCode}) {ex.StatusCode}[/]");
+            return -1;
         }
     }
 
@@ -66,7 +92,11 @@ public class XblClient
         }
     }
 
-    public async Task RarestAchievements(int limit)
+    #endregion
+
+    #region Built-in queries
+
+    public async Task RarestAchievements()
     {
         var titles = await LoadTitles();
         var data = titles
@@ -77,12 +107,12 @@ public class XblClient
             kvp.Key.Name,
             a.Name,
             a.Rarity.CurrentPercentage
-        ))).OrderBy(a => a.Percentage).Take(limit);
+        ))).OrderBy(a => a.Percentage).Take(_limit);
 
         _output.RarestAchievements(rarest);
     }
 
-    public async Task WeightedRarity(int limit)
+    public async Task WeightedRarity()
     {
         var titles = await LoadTitles();
         var data = titles
@@ -102,51 +132,49 @@ public class XblClient
                     var weightFactor = Math.Exp((100 - a.Rarity.CurrentPercentage) / 5.0);
                     return score / t.Key.Achievement.TotalGamerscore * weightFactor;
                 })
-        )).OrderByDescending(a => a.Weight).Take(limit);
+        )).OrderByDescending(a => a.Weight).Take(_limit);
 
         _output.WeightedRarity(mostRare);
     }
 
-    public async Task MostComplete(int limit, IEnumerable<Title> additionalTitles = null)
+    public async Task MostComplete()
     {
         IEnumerable<Title> titles = await LoadTitles();
-        if (additionalTitles != null) titles = titles.Union(additionalTitles);
+        if (AdditionalTitles != null) titles = titles.Union(AdditionalTitles);
 
         var data = titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
             .ThenByDescending(t => t.Achievement?.TotalGamerscore)
-            .Take(limit);
+            .Take(_limit);
 
         _output.MostComplete(data);
     }
 
-    public async Task SpentMostTimeWith(int limit)
+    public async Task SpentMostTimeWith()
     {
         var titles = await LoadTitles();
 
         var data = titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
             .ThenByDescending(t => t.Achievement?.TotalGamerscore)
-            //.Take(149)
             .ToDictionary(t => t, t => LoadStats(t.TitleId).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0)
             .OrderByDescending(t => t.Value)
-            .Take(limit)
+            .Take(_limit)
             .Select(kvp => new MinutesPlayed(kvp.Key.Name, kvp.Value));
 
         _output.SpentMostTimeWith(data);
     }
 
-    public async Task Count(IEnumerable<Title> additionalTitles = null)
+    public async Task Count()
     {
         var titles = await LoadTitles();
-        var a = additionalTitles?.ToArray();
         var table = new Table();
         table.AddColumn("[bold]Profile[/]");
         table.AddColumn("[bold]Games[/]", c =>
         {
             c.Alignment = Justify.Right;
-            if (a == null) return;
-            var allTitles = titles.Concat(a).ToArray();
+            if (AdditionalTitles == null) return;
+            var allTitles = titles.Concat(AdditionalTitles).ToArray();
             var g = allTitles.GroupBy(t => t.Name);
             c.Footer($"{allTitles.Length}|{g.Count()}");
 
@@ -157,9 +185,9 @@ public class XblClient
 
         RenderProfile(table, titles, "Xbox Live", "green3_1");
 
-        if (additionalTitles != null)
+        if (AdditionalTitles != null)
         {
-            RenderProfile(table, a, "Xbox 360", "cyan1");
+            RenderProfile(table, AdditionalTitles, "Xbox 360", "cyan1");
             table.ShowFooters = true;
         }
 
@@ -177,6 +205,60 @@ public class XblClient
 
         table.AddRow(profile, c1, count, sum, hours);
     }
+
+    #endregion
+
+    #region KQL
+
+    public async Task<int> RunKustoQuery()
+    {
+        var context = new KustoQueryContext();
+        var titles = await LoadTitles();
+        switch (Settings.KustoQuerySource)
+        {
+            case "achievements":
+                var tasks = titles
+                    .OrderByDescending(t => t.Achievement.ProgressPercentage)
+                    .Select(t => LoadAchievements(t.TitleId));
+                var data = await Task.WhenAll(tasks);
+                var achievements = data.SelectMany(a => a);
+                if (AdditionalAchievements != null) achievements = achievements.Union(AdditionalAchievements);
+
+                context.WrapDataIntoTable("achievements", achievements.Select(a => _mapper.Map<KqlAchievement>(a)).ToImmutableArray());
+
+                break;
+            case "stats":
+                var tasks1 = titles
+                    .OrderByDescending(t => t.Achievement.ProgressPercentage)
+                    .Select(t => LoadStats(t.TitleId));
+                var data1 = await Task.WhenAll(tasks1);
+
+                context.WrapDataIntoTable("stats", data1.SelectMany(s => s.Select(m => _mapper.Map<KqlMinutesPlayed>(m))).ToImmutableArray());
+
+                break;
+            default:
+                var t = AdditionalTitles != null
+                    ? titles.Union(AdditionalTitles).ToImmutableArray()
+                    : titles.ToImmutableArray();
+
+                context.WrapDataIntoTable("titles", t.Select(a => _mapper.Map<KqlTitle>(a)).ToImmutableArray());
+
+                break;
+        }
+
+        var kql = await File.ReadAllTextAsync(Settings.KustoQueryPath);
+        var result = await context.RunQuery(kql);
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]{result.Error}[/]");
+            return 1;
+        }
+
+        _output.KustoQueryResult(result);
+        return 0;
+    }
+
+    #endregion
 
     #region Infra
 

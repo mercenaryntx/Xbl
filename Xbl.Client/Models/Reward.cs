@@ -16,4 +16,6 @@ public class Reward
     public object MediaAsset { get; set; }
     [JsonPropertyName("valueType")]
     public string ValueType { get; set; }
+
+    public int IntValue => Type == "Integer" && int.TryParse(Value, out var x) ? x : 0;
 }

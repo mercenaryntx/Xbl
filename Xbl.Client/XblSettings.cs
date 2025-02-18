@@ -9,45 +9,35 @@ public sealed class XblSettings : CommandSettings
     [Description("OpenXBL API Key for Xbox One and Series S|X profile information")]
     public string ApiKey { get; init; }
 
-    [CommandOption("-c|--count")]
-    [Description("Quick summary about your loaded profiles")]
-    public bool Count { get; init; }
+    [CommandOption("-e")]
+    [Description("Prints extended help information about the query sources")]
+    public bool ExtendedHelp { get; init; }
 
-    //[CommandOption("-h|--help")]
-    //[Description("Show this help")]
-    //public bool Help { get; init; }
+    [CommandOption("-k|--kql")]
+    [Description("Your Kustom query (*.kql) path")]
+    public string KustoQueryPath { get; set; }
 
     [CommandOption("-l|--limit")]
-    [Description("Limit of the items displayed (default=50)")]
-    [DefaultValue(50)]
-    public int Limit { get; init; }
-
-    [CommandOption("-m|--most-complete-games")]
-    [Description("Most complete games")]
-    public bool MostComplete { get; init; }
+    [Description("Limit of the items displayed [grey](default=50)[/]")]
+    public int Limit { get; set; }
 
     [CommandOption("-o|--output")]
-    [Description("Output format: Console or JSON (default=Console)")]
+    [Description("Output format:\n  [#f9f1a5]console[/] [grey](default)[/]\n  [#f9f1a5]json[/]")]
     public string Output { get; init; }
 
     [CommandOption("-p|--profile")]
-    [Description("Your Xbox 360 Profile (STFS package) Path")]
+    [Description("Your Xbox 360 Profile (STFS package) path")]
     public string ProfilePath { get; init; }
 
-    [CommandOption("-r|--rarest-achievements")]
-    [Description("Rarest achievements")]
-    public bool Rarest { get; init; }
+    [CommandOption("-q|--query")]
+    [Description("Select one of the built-in queries: \n  [#f9f1a5]summary[/] - Quick summary about your loaded profiles [grey](default)[/]\n  [#f9f1a5]completeness[/] - Your most complete games\n  [#f9f1a5]time[/] - Games you spent the most time with\n  [#f9f1a5]rarity[/] - Your rarest achievements\n  [#f9f1a5]weighted-rarity[/] - Your games with the most rarest achievements")]
+    public string Query { get; init; }
 
-    [CommandOption("-s|--spent-the-most-time-with")]
-    [Description("Most played games")]
-    public bool MostPlayed { get; init; }
+    [CommandOption("-s|--source")]
+    [Description("The source of you custom KQL query:\n  [#f9f1a5]titles[/] [grey](default)[/]\n  [#f9f1a5]achievements[/]\n  [#f9f1a5]stats[/]")]
+    public string KustoQuerySource { get; init; }
 
     [CommandOption("-u|--update")]
-    [Description("Update Xbox Live data files: all, achievements, stats (default=all)")]
+    [Description("Update Xbox Live data files:\n  [#f9f1a5]all[/] [grey](default)[/]\n  [#f9f1a5]achievements[/]\n  [#f9f1a5]stats[/]")]
     public string Update { get; init; }
-
-    [CommandOption("-w|--weighted-rarity")]
-    [Description("Weighted rare achievements")]
-    public bool WeightedAchievements { get; init; }
-
 }
