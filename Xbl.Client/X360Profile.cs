@@ -1,4 +1,5 @@
-﻿using Xbl.Client.Models;
+﻿using Spectre.Console;
+using Xbl.Client.Models;
 using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Stfs;
 using Xbl.Xbox360.Models;
@@ -50,8 +51,9 @@ public class X360Profile
         var p = profile.ProfileInfo.TitlesPlayed.Where(t => !string.IsNullOrEmpty(t.TitleName) && t.AchievementsUnlocked > 0).Select(t => t.TitleCode).ToHashSet();
 
         var first = true;
-        return profile.Games.Values.SelectMany(g =>
+        return profile.Games.SelectMany(kvp =>
         {
+            var g = kvp.Value;
             if (p.Contains(g.TitleId)) g.Parse();
 
             unchecked
@@ -106,7 +108,7 @@ public class X360Profile
                                 Console.WriteLine();
                                 first = false;
                             }
-                            Console.WriteLine($"{g.Title} is buggy");
+                            AnsiConsole.MarkupLineInterpolated($"[#f9fba5]Warning:[/] {g.Title} ([grey]{kvp.Key.Name}[/]) is corrupted. Invalid entries are omitted.");
                             bugReported = true;
                         }
                         return null;
