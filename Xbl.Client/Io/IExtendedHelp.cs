@@ -1,4 +1,4 @@
-﻿namespace Xbl.Client;
+﻿namespace Xbl.Client.Io;
 
 public interface IExtendedHelp
 {

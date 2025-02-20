@@ -5,16 +5,23 @@ using Spectre.Console;
 using Spectre.Console.Json;
 using Xbl.Client.Models;
 
-namespace Xbl.Client;
+namespace Xbl.Client.Io;
 
 public class ExtendedHelp : IExtendedHelp
 {
+    private readonly IConsole _console;
+
+    public ExtendedHelp(IConsole console)
+    {
+        _console = console;
+    }
+
     public int Print()
     {
         var titles = PrintJsonPanel(GetTitleExample(), "titles");
         var stats = PrintJsonPanel(GetStatExample(), "stats");
         var achievements = PrintJsonPanel(GetAchievementExample(), "achievements");
-        AnsiConsole.Write(new Columns(titles, stats, achievements));
+        _console.Write(new Columns(titles, stats, achievements));
         return 0;
     }
 
@@ -73,10 +80,10 @@ public class ExtendedHelp : IExtendedHelp
 
     private static JsonText GetJsonText(object o)
     {
-        var green = new Color(74, 222, 128);
-        var blue = new Color(14, 165, 233);
-        var red = new Color(244, 63, 94);
-        var yellow = new Color(249, 251, 165);
+        var scalar = new Color(22, 198, 12); //new Color(74, 222, 128);
+        var member = Color.Cyan1; //new Color(14, 165, 233);
+        var str = Color.Cyan3; //new Color(244, 63, 94);
+        var colon = new Color(249, 251, 165);
 
         return new JsonText(JsonSerializer.Serialize(o, new JsonSerializerOptions
         {
@@ -84,7 +91,7 @@ public class ExtendedHelp : IExtendedHelp
             {
                 Modifiers =
                 {
-                    (JsonTypeInfo typeInfo) =>
+                    (typeInfo) =>
                     {
                         foreach (var property in typeInfo.Properties)
                         {
@@ -96,14 +103,14 @@ public class ExtendedHelp : IExtendedHelp
             }
         }))
         {
-            BooleanStyle = green,
-            NumberStyle = green,
+            BooleanStyle = scalar,
+            NumberStyle = scalar,
             BracesStyle = Color.Silver,
             BracketsStyle = Color.Silver,
-            MemberStyle = blue,
-            ColonStyle = yellow,
+            MemberStyle = member,
+            ColonStyle = colon,
             CommaStyle = Color.Silver,
-            StringStyle = red,
+            StringStyle = str,
             NullStyle = Color.Silver
         };
     }
