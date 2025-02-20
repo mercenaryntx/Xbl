@@ -1,47 +1,58 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Xbl.Client.Models;
 
 public class Achievement
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; }
-    [JsonPropertyName("serviceConfigId")]
-    public string ServiceConfigId { get; set; }
+    public int Id { get; set; }
+    [JsonPropertyName("titleId")]
+    public int TitleId { get; set; }
+    [JsonPropertyName("titleName")]
+    public string TitleName { get; set; }
     [JsonPropertyName("name")]
     public string Name { get; set; }
-    [JsonPropertyName("titleAssociations")]
-    public TitleAssociation[] TitleAssociations { get; set; }
-    [JsonPropertyName("progressState")]
-    public string ProgressState { get; set; }
-    [JsonPropertyName("progression")]
-    public Progression Progression { get; set; }
-    [JsonPropertyName("mediaAssets")]
-    public MediaAsset[] MediaAssets { get; set; }
-    [JsonPropertyName("platforms")]
-    public string[] Platforms { get; set; }
+    [JsonPropertyName("sequence")]
+    public int Sequence { get; set; }
+    [JsonPropertyName("flags")]
+    public int Flags { get; set; }
+    [JsonPropertyName("unlockedOnline")]
+    public bool UnlockedOnline { get; set; }
+    [JsonPropertyName("unlocked")]
+    public bool Unlocked { get; set; }
     [JsonPropertyName("isSecret")]
     public bool IsSecret { get; set; }
+    [JsonPropertyName("platform")]
+    [JsonConverter(typeof(PlatformConverter))]
+    public string Platform { get; set; }
+    [JsonPropertyName("gamerscore")]
+    public int Gamerscore { get; set; }
+    [JsonPropertyName("imageId")]
+    public int ImageId { get; set; }
     [JsonPropertyName("description")]
     public string Description { get; set; }
     [JsonPropertyName("lockedDescription")]
     public string LockedDescription { get; set; }
-    [JsonPropertyName("productId")]
-    public string ProductId { get; set; }
-    [JsonPropertyName("achievementType")]
-    public string AchievementType { get; set; }
-    [JsonPropertyName("participationType")]
-    public string ParticipationType { get; set; }
-    [JsonPropertyName("timeWindow")]
-    public object TimeWindow { get; set; }
-    [JsonPropertyName("rewards")]
-    public Reward[] Rewards { get; set; }
-    [JsonPropertyName("estimatedTime")]
-    public string EstimatedTime { get; set; }
-    [JsonPropertyName("deeplink")]
-    public string Deeplink { get; set; }
+    [JsonPropertyName("type")]
+    public int Type { get; set; }
     [JsonPropertyName("isRevoked")]
     public bool IsRevoked { get; set; }
+    [JsonPropertyName("timeUnlocked")]
+    public DateTime TimeUnlocked { get; set; }
     [JsonPropertyName("rarity")]
     public Rarity Rarity { get; set; }
+}
+
+public class PlatformConverter : JsonConverter<string>
+{
+    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return "Xbox360";
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value);
+    }
 }

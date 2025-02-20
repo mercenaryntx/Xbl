@@ -17,5 +17,5 @@ public class Reward
     [JsonPropertyName("valueType")]
     public string ValueType { get; set; }
 
-    public int IntValue => Type == "Integer" && int.TryParse(Value, out var x) ? x : 0;
+    public int IntValue => ValueType == "Int" && int.TryParse(Value, out var x) ? x : 0;
 }

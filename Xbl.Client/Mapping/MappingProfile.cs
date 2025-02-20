@@ -7,12 +7,17 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<Achievement, KqlAchievement>()
-            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.ProductId))
+        CreateMap<LiveAchievement, Achievement>()
+            .ForMember(d => d.TitleId, o => o.MapFrom(s => long.Parse(s.Id)))
             .ForMember(d => d.TitleName, o => o.MapFrom(s => s.TitleAssociations[0].Name))
             .ForMember(d => d.TimeUnlocked, o => o.MapFrom(s => s.Progression.TimeUnlocked))
+            .ForMember(d => d.Unlocked, o => o.MapFrom(s => s.ProgressState == "Achieved"))
+            .ForMember(d => d.UnlockedOnline, o => o.MapFrom(s => s.ProgressState == "Achieved"))
             .ForMember(d => d.Platform, o => o.MapFrom(s => MapPlatform(s.Platforms)))
-            .ForMember(d => d.Gamerscore, o => o.MapFrom(s => s.Rewards.SingleOrDefault(r => r.Type == "Gamerscore").IntValue))
+            .ForMember(d => d.Gamerscore, o => o.MapFrom(s => MapGamerscore(s.Rewards)));
+
+        CreateMap<Achievement, KqlAchievement>()
+            .ForMember(d => d.IsUnlocked, o => o.MapFrom(s => s.Unlocked))
             .ForMember(d => d.IsRare, o => o.MapFrom(s => s.Rarity.CurrentCategory == "Rare"))
             .ForMember(d => d.RarityPercentage, o => o.MapFrom(s => s.Rarity.CurrentPercentage));
 
@@ -42,5 +47,10 @@ public class MappingProfile : Profile
             default:
                 return x;
         }
+    }
+
+    private static int MapGamerscore(IEnumerable<Reward> rewards)
+    {
+        return rewards.SingleOrDefault(r => r.Type == nameof(KqlAchievement.Gamerscore))?.IntValue ?? 0;
     }
 }

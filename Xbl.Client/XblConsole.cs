@@ -104,7 +104,7 @@ public class XblConsole : IOutput
         foreach (var row in result.EnumerateRows())
         {
             var rowCells = row.Select(CellToString).ToArray();
-            table.AddRow(rowCells);
+            table.AddRow(rowCells.Select(cell => new Markup(cell.EscapeMarkup())));
         }
 
         AnsiConsole.Write(table);

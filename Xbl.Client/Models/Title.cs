@@ -52,4 +52,9 @@ public class Title
     public string XboxLiveTier { get; set; }
     [JsonPropertyName("isStreamable")]
     public bool IsStreamable { get; set; }
+
+    public bool IsLive { get; set; }
+    public bool IsXbox360 { get; set; }
+    public bool IsMobile { get; set; }
+    public string HexId { get; set; }
 }

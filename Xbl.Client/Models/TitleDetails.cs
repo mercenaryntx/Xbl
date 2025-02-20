@@ -2,10 +2,10 @@
 
 namespace Xbl.Client.Models;
 
-public class TitleDetails
+public class TitleDetails<T>
 {
     [JsonPropertyName("achievements")]
-    public Achievement[] Achievements { get; set; }
+    public T[] Achievements { get; set; }
     [JsonPropertyName("pagingInfo")]
     public PagingInfo PagingInfo { get; set; }
 }

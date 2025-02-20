@@ -5,7 +5,7 @@ public class KqlAchievement
     public string Name { get; set; }
     public string TitleId { get; set; }
     public string TitleName { get; set; }
-    public string ProgressState { get; set; }
+    public bool IsUnlocked { get; set; }
     public DateTime TimeUnlocked { get; set; }
     public string Platform { get; set; }
     public bool IsSecret { get; set; }

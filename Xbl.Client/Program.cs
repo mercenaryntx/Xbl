@@ -16,7 +16,7 @@ public class Program
             c.SetApplicationName("xbl");
             c.AddExample("-a={apiKey} -u");
             c.AddExample("-q=rarity");
-            c.AddExample("-p=E00001D5D85ED487 -q=completeness -l=1000 -o=json");
+            c.AddExample("-q=completeness -l=1000 -o=json");
             c.AddExample("-s=achievements -k=stackedareachart.kql");
         });
 

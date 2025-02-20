@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AutoMapper;
@@ -7,22 +6,27 @@ using KustoLoco.Core;
 using Spectre.Console;
 using Xbl.Client.Mapping;
 using Xbl.Client.Models;
+using Xbl.Xbox360.Extensions;
+using Xbl.Xbox360.Io.Gpd;
+using Xbl.Xbox360.Io.Stfs;
+using Xbl.Xbox360.Io.Stfs.Data;
+using Xbl.Xbox360.Models;
 
 namespace Xbl.Client;
 
 public class XblClient
 {
-    private const string TitlesFile = "titles.json";
+    private const string Live = "live";
+    private const string Xbox360 = "x360";
     private const string DataFolder = "data";
 
     private readonly HttpClient _client = new();
     private readonly IOutput _output;
     private readonly int _limit;
-    private IMapper _mapper;
+    private readonly IMapper _mapper;
+    private string _xuid;
 
     public XblSettings Settings { get; }
-    public Title[] AdditionalTitles { get; set; }
-    public Achievement[] AdditionalAchievements { get; set; }
 
     public XblClient(XblSettings settings)
     {
@@ -33,8 +37,6 @@ public class XblClient
             "json" => new XblJson(),
             _ => new XblConsole()
         };
-
-        if (!Directory.Exists(DataFolder)) Directory.CreateDirectory(DataFolder);
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
         _mapper = config.CreateMapper();
@@ -50,13 +52,17 @@ public class XblClient
         try
         {
             AnsiConsole.Markup("[white]Getting titles... [/]");
-            await GetTitles();
-            var titles = await LoadTitles();
+            await GetLiveTitles();
+            var titles = await LoadTitles(false);
             AnsiConsole.MarkupLineInterpolated($"[#16c60c]OK[/] [white][[{titles.Length}]][/]");
 
             if (update is "all" or "achievements")
             {
-                await UpdateTitles(titles, title => $"{title.TitleId}.json", "achievements", GetAchievements);
+                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.IsMobile);
+                var x360 = src.Where(t => t.IsXbox360);
+                var rest = src.Where(t => !t.IsXbox360);
+                await UpdateLiveTitles(rest, "Live achievements", GetAchievements);
+                await UpdateLiveTitles(x360, "X360 achievements", Get360Achievements);
             }
             if (update is "all" or "stats")
             {
@@ -73,23 +79,151 @@ public class XblClient
         }
     }
 
-    private static async Task UpdateTitles(IEnumerable<Title> titles, Func<Title, string> dataFile, string type, Func<string, Task> updateLogic)
+    private static async Task UpdateLiveTitles(IEnumerable<Title> titles, string type, Func<Title, Task> updateLogic)
     {
         var changes = titles.Where(title =>
         {
-            var x = new FileInfo(Path.Combine(DataFolder, dataFile(title)));
+            var x = new FileInfo(GetAchievementFilePath(title));
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
-        AnsiConsole.MarkupLineInterpolated($"[white]Found [/] [cyan1]{changes.Length}[/] [white]{type} changes[/]");
+        AnsiConsole.MarkupLineInterpolated($"[white]Found[/] [cyan1]{changes.Length}[/] [white]{type} changes[/]");
 
         for (var i = 0; i < changes.Length; i++)
         {
             var title = changes[i];
             AnsiConsole.MarkupInterpolated($"[silver][[{i + 1:D3}/{changes.Length:D3}]][/] [white]Updating [/] [cyan1]{title.Name}[/][white]... [/]");
-            await updateLogic(title.TitleId);
+            await updateLogic(title);
             AnsiConsole.MarkupLine("[#16c60c]OK[/]");
         }
+    }
+
+    #endregion
+
+    #region Import
+
+    public async Task<int> Import()
+    {
+        AnsiConsole.MarkupInterpolated($"[white]Importing Xbox 360 profile...[/] ");
+        var cursor = Console.GetCursorPosition();
+        AnsiConsole.MarkupLine("[#f9f1a5]0%[/]");
+
+        try
+        {
+            var profilePath = Settings.ProfilePath;
+            var bytes = await File.ReadAllBytesAsync(profilePath);
+            var profile = ModelFactory.GetModel<StfsPackage>(bytes);
+            profile.ExtractGames();
+
+            var profileHex = Path.GetFileName(profilePath);
+            var titles = new AchievementTitles
+            {
+                Xuid = BitConverter.ToUInt64(profileHex.FromHex()).ToString(),
+                Titles = GetTitlesFromProfile(profile)
+            };
+
+            var json = JsonSerializer.Serialize(titles);
+            await SaveJson(GetTitlesFilePath(Xbox360), json);
+
+            var i = 0;
+            var n = 0;
+            foreach (var (fileEntry, game) in profile.Games)
+            {
+                game.Parse();
+
+                var achievements = new TitleDetails<Achievement>
+                {
+                    Achievements = GetAchievementsFromGameFile(fileEntry, game, out var hadBug)
+                };
+                if (hadBug) n++;
+
+                json = JsonSerializer.Serialize(achievements);
+                await SaveJson(GetAchievementFilePath(Xbox360, game.TitleId), json);
+
+                Console.SetCursorPosition(cursor.Left, cursor.Top);
+                AnsiConsole.MarkupLineInterpolated($"[#f9f1a5]{++i * 100 / profile.Games.Count}%[/]");
+            }
+
+            for (i = 0; i < n; i++)
+            {
+                Console.WriteLine();
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]Failed to import. {ex.Message}[/]");
+            return -1;
+        }
+    }
+
+    private static Title[] GetTitlesFromProfile(StfsPackage profile)
+    {
+        return profile
+            .ProfileInfo
+            .TitlesPlayed
+            .Where(g => !string.IsNullOrEmpty(g.TitleName))
+            .Select(g =>
+            {
+                var t = new Title
+                {
+                    TitleId = BitConverter.ToInt32(g.TitleCode.FromHex()).ToString(),
+                    HexId = g.TitleCode,
+                    Name = g.TitleName,
+                    Type = "Game",
+                    IsXbox360 = true,
+                    Achievement = new AchievementSummary
+                    {
+                        CurrentAchievements = g.AchievementsUnlocked,
+                        CurrentGamerscore = g.GamerscoreUnlocked,
+                        ProgressPercentage = g.TotalGamerScore > 0 ? 100 * g.GamerscoreUnlocked / g.TotalGamerScore : 0,
+                        TotalGamerscore = g.TotalGamerScore,
+                        TotalAchievements = g.AchievementCount
+                    }
+                };
+
+                return t;
+
+            })
+            .ToArray();
+    }
+
+    private static Achievement[] GetAchievementsFromGameFile(FileEntry fileEntry, GameFile game, out bool hadBug)
+    {
+        var bugReported = false;
+        var achievements = game.Achievements.Select(a =>
+        {
+            try
+            {
+                if (a.Gamerscore < 0 || a.AchievementId < 0) throw new Exception();
+
+                return new Achievement
+                {
+                    Id = a.AchievementId,
+                    Name = a.Name,
+                    TitleId = BitConverter.ToInt32(game.TitleId.FromHex()),
+                    TitleName = game.Title,
+                    Unlocked = a.IsUnlocked,
+                    TimeUnlocked = a.IsUnlocked ? a.UnlockTime : DateTime.MinValue,
+                    Platform = "Xbox360",
+                    IsSecret = a.IsSecret,
+                    Description = a.UnlockedDescription,
+                    LockedDescription = a.LockedDescription,
+                    Gamerscore = a.Gamerscore
+                };
+            }
+            catch
+            {
+                if (bugReported) return null;
+                AnsiConsole.MarkupLineInterpolated($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries are omitted.");
+                bugReported = true;
+                return null;
+            }
+        }).Where(a => a != null).ToArray();
+
+        hadBug = bugReported;
+        return achievements;
     }
 
     #endregion
@@ -98,12 +232,12 @@ public class XblClient
 
     public async Task RarestAchievements()
     {
-        var titles = await LoadTitles();
+        var titles = await LoadTitles(false);
         var data = titles
             .OrderByDescending(t => t.Achievement.ProgressPercentage)
-            .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
+            .ToDictionary(t => t, t => LoadAchievements(t).GetAwaiter().GetResult());
 
-        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.ProgressState == "Achieved").Select(a => new RarestAchievementItem(
+        var rarest = data.SelectMany(kvp => kvp.Value.Where(a => a.Unlocked).Select(a => new RarestAchievementItem(
             kvp.Key.Name,
             a.Name,
             a.Rarity.CurrentPercentage
@@ -114,21 +248,21 @@ public class XblClient
 
     public async Task WeightedRarity()
     {
-        var titles = await LoadTitles();
+        var titles = await LoadTitles(false);
         var data = titles
             .OrderByDescending(t => t.Achievement.ProgressPercentage)
-            .ToDictionary(t => t, t => LoadAchievements(t.TitleId).GetAwaiter().GetResult());
+            .ToDictionary(t => t, t => LoadAchievements(t).GetAwaiter().GetResult());
 
         var mostRare = data.Select(t => new WeightedAchievementItem(
             t.Key.Name,
             t.Key.Achievement,
             t.Value.Count(),
-            t.Value.Count(a => a.ProgressState == "Achieved"),
-            t.Value.Count(a => a.ProgressState == "Achieved" && a.Rarity.CurrentCategory == "Rare"),
-            t.Value.Where(a => a.ProgressState == "Achieved")
+            t.Value.Count(a => a.Unlocked),
+            t.Value.Count(a => a.Unlocked && a.Rarity.CurrentCategory == "Rare"),
+            t.Value.Where(a => a.Unlocked)
                 .Sum(a =>
                 {
-                    double score = int.Parse(a.Rewards.FirstOrDefault(r => r.ValueType == "Int")?.Value ?? "0");
+                    double score = a.Gamerscore;
                     var weightFactor = Math.Exp((100 - a.Rarity.CurrentPercentage) / 5.0);
                     return score / t.Key.Achievement.TotalGamerscore * weightFactor;
                 })
@@ -140,7 +274,6 @@ public class XblClient
     public async Task MostComplete()
     {
         IEnumerable<Title> titles = await LoadTitles();
-        if (AdditionalTitles != null) titles = titles.Union(AdditionalTitles);
 
         var data = titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
@@ -152,12 +285,12 @@ public class XblClient
 
     public async Task SpentMostTimeWith()
     {
-        var titles = await LoadTitles();
+        var titles = await LoadTitles(false);
 
         var data = titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
             .ThenByDescending(t => t.Achievement?.TotalGamerscore)
-            .ToDictionary(t => t, t => LoadStats(t.TitleId).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0)
+            .ToDictionary(t => t, t => LoadStats(t).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0)
             .OrderByDescending(t => t.Value)
             .Take(_limit)
             .Select(kvp => new MinutesPlayed(kvp.Key.Name, kvp.Value));
@@ -173,21 +306,19 @@ public class XblClient
         table.AddColumn("[bold]Games[/]", c =>
         {
             c.Alignment = Justify.Right;
-            if (AdditionalTitles == null) return;
-            var allTitles = titles.Concat(AdditionalTitles).ToArray();
-            var g = allTitles.GroupBy(t => t.Name);
-            c.Footer($"{allTitles.Length}|{g.Count()}");
+            var g = titles.GroupBy(t => t.Name);
+            c.Footer($"{titles.Length}|{g.Count()}");
 
         });
         table.AddColumn("[bold]Achievements[/]", c => c.Alignment = Justify.Right);
         table.AddColumn("[bold]Gamerscore[/]", c => c.Alignment = Justify.Right);
         table.AddColumn("[bold]Hours played[/]", c => c.Alignment = Justify.Right);
 
-        RenderProfile(table, titles, "Xbox Live", "green3_1");
-
-        if (AdditionalTitles != null)
+        RenderProfile(table, titles.Where(t => t.IsLive).ToArray(), "Xbox Live", "green3_1");
+        var x360 = titles.Where(t => !t.IsLive).ToArray();
+        if (x360.Length > 0)
         {
-            RenderProfile(table, AdditionalTitles, "Xbox 360", "cyan1");
+            RenderProfile(table, x360, "Xbox 360", "cyan1");
             table.ShowFooters = true;
         }
 
@@ -200,7 +331,7 @@ public class XblClient
         var c1 = $"[{color}]{titles.Length}[/]";
         var count = $"[{color}]{titles.Sum(t => t.Achievement?.CurrentAchievements)}[/]";
         var sum = $"[{color}]{titles.Sum(t => t.Achievement?.CurrentGamerscore)}[/]";
-        var played = titles.Sum(t => LoadStats(t.TitleId).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0);
+        var played = titles.Sum(t => LoadStats(t).GetAwaiter().GetResult().FirstOrDefault(s => s.Name == "MinutesPlayed")?.IntValue ?? 0);
         var hours = $"[{color}]{TimeSpan.FromMinutes(played).TotalHours:0.0}[/]";
 
         table.AddRow(profile, c1, count, sum, hours);
@@ -219,10 +350,9 @@ public class XblClient
             case "achievements":
                 var tasks = titles
                     .OrderByDescending(t => t.Achievement.ProgressPercentage)
-                    .Select(t => LoadAchievements(t.TitleId));
+                    .Select(LoadAchievements);
                 var data = await Task.WhenAll(tasks);
                 var achievements = data.SelectMany(a => a);
-                if (AdditionalAchievements != null) achievements = achievements.Union(AdditionalAchievements);
 
                 context.WrapDataIntoTable("achievements", achievements.Select(a => _mapper.Map<KqlAchievement>(a)).ToImmutableArray());
 
@@ -230,23 +360,24 @@ public class XblClient
             case "stats":
                 var tasks1 = titles
                     .OrderByDescending(t => t.Achievement.ProgressPercentage)
-                    .Select(t => LoadStats(t.TitleId));
+                    .Select(LoadStats);
                 var data1 = await Task.WhenAll(tasks1);
 
                 context.WrapDataIntoTable("stats", data1.SelectMany(s => s.Select(m => _mapper.Map<KqlMinutesPlayed>(m))).ToImmutableArray());
 
                 break;
             default:
-                var t = AdditionalTitles != null
-                    ? titles.Union(AdditionalTitles).ToImmutableArray()
-                    : titles.ToImmutableArray();
 
-                context.WrapDataIntoTable("titles", t.Select(a => _mapper.Map<KqlTitle>(a)).ToImmutableArray());
+                context.WrapDataIntoTable("titles", titles.Select(a => _mapper.Map<KqlTitle>(a)).ToImmutableArray());
 
                 break;
         }
 
-        var kql = await File.ReadAllTextAsync(Settings.KustoQueryPath);
+        var kql = Settings.KustoQuery;
+        if (kql.EndsWith(".kql", StringComparison.InvariantCultureIgnoreCase))
+        {
+            kql = await File.ReadAllTextAsync(Settings.KustoQuery);
+        }
         var result = await context.RunQuery(kql);
         if (!string.IsNullOrEmpty(result.Error))
         {
@@ -262,15 +393,15 @@ public class XblClient
 
     #region Infra
 
-    public async Task GetTitles()
+    public async Task GetLiveTitles()
     {
         var s = await _client.GetStringAsync("achievements/");
-        await File.WriteAllTextAsync(Path.Combine(DataFolder, TitlesFile), s);
+        await SaveJson(GetTitlesFilePath(Live), s);
     }
 
-    public static async Task<Title[]> LoadTitles()
+    public async Task<Title[]> LoadTitles(bool union = true)
     {
-        var path = Path.Combine(DataFolder, TitlesFile);
+        var path = GetTitlesFilePath(Live);
         if (!File.Exists(path))
         {
             AnsiConsole.MarkupLine("[red]Error:[/] [silver]Data files cannot be found. Please run an update first[/]");
@@ -278,53 +409,76 @@ public class XblClient
         }
 
         var a = await JsonHelper.FromFile<AchievementTitles>(path);
-        return a.Titles.OrderByDescending(t => t.Achievement.ProgressPercentage).ToArray();
+        _xuid = a.Xuid;
+        IEnumerable<Title> titles = a.Titles.Select(t =>
+        {
+            t.IsLive = true;
+            t.IsXbox360 = t.Devices.Contains("Xbox360");
+            t.IsMobile = t.Devices.Contains("Mobile");
+            t.HexId = ToHexId(t.TitleId);
+            return t;
+        }).OrderByDescending(t => t.Achievement.ProgressPercentage);
+
+        path = GetTitlesFilePath(Xbox360);
+        if (union && File.Exists(path))
+        {
+            a = await JsonHelper.FromFile<AchievementTitles>(path);
+            titles = titles.Union(a.Titles);
+        }
+
+        return titles.ToArray();
     }
 
-    public async Task GetAchievements(string titleId)
+    public async Task GetAchievements(Title title)
     {
-        var s = await _client.GetStringAsync("achievements/title/" + titleId);
-        await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{titleId}.json"), s);
+        var s = await _client.GetStringAsync("achievements/title/" + title.TitleId);
+        await SaveJson(GetAchievementFilePath(title), s);
     }
 
-    public static async Task<Achievement[]> LoadAchievements(string titleId)
+    public async Task Get360Achievements(Title title)
     {
-        var path = Path.Combine(DataFolder, $"{titleId}.json");
+        var s = await _client.GetStringAsync($"achievements/x360/{_xuid}/title/{title.TitleId}");
+        await SaveJson(GetAchievementFilePath(title), s);
+    }
+
+    public async Task<Achievement[]> LoadAchievements(Title title)
+    {
+        var path = GetAchievementFilePath(title);
         if (!File.Exists(path)) return Array.Empty<Achievement>();
 
-        var details = await JsonHelper.FromFile<TitleDetails>(path);
-        return details.Achievements;
-    }
+        if (title.IsXbox360)
+        {
+            var details360 = await JsonHelper.FromFile<TitleDetails<Achievement>>(path);
+            foreach (var a in details360.Achievements)
+            {
+                a.TitleName = title.Name;
+            }
+            return details360.Achievements;
+        }
 
-    //public async Task GetStats(string titleId)
-    //{
-    //    var s = await _client.GetStringAsync("achievements/stats/" + titleId);
-    //    await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{titleId}.stats.json"), s);
-    //}
+        var details = await JsonHelper.FromFile<TitleDetails<LiveAchievement>>(path);
+        return _mapper.Map<Achievement[]>(details.Achievements);
+    }
 
     public async Task GetStatsBulk(IEnumerable<Title> titles)
     {
-        //var playerJson = await _client.GetStringAsync("player/summary");
-        //var player = JsonSerializer.Deserialize<Player>(playerJson);
-        //var xuid = player.People.First().XUID;
-
         var changes = titles.Where(title =>
         {
-            var x = new FileInfo(Path.Combine(DataFolder, $"{title.TitleId}.stats.json"));
+            if (title.IsMobile || title.IsXbox360) return false;
+            var x = new FileInfo(GetStatsFilePath(title));
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
-        var a = await JsonHelper.FromFile<AchievementTitles>(Path.Combine(DataFolder, TitlesFile));
+        var a = await JsonHelper.FromFile<AchievementTitles>(GetTitlesFilePath(Live));
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
             XUIDs = new[] { a.Xuid },
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.TitleId }).ToArray()
         }).ToArray();
 
-        AnsiConsole.MarkupLineInterpolated($"[white]Updating stats[/] ");
-        Console.ForegroundColor = ConsoleColor.Yellow;
+        AnsiConsole.MarkupInterpolated($"[white]Updating stats...[/] ");
         var cursor = Console.GetCursorPosition();
-        Console.Write("0%");
+        AnsiConsole.Markup("[#f9f1a5]0%[/]");
 
         var i = 0;
         foreach (var page in pages)
@@ -350,17 +504,16 @@ public class XblClient
                     }
                 };
                 var json = JsonSerializer.Serialize(titleStats);
-                await File.WriteAllTextAsync(Path.Combine(DataFolder, $"{stat.TitleId}.stats.json"), json);
+                await SaveJson(GetStatsFilePath(Live, stat.TitleId), json);
             }
             Console.SetCursorPosition(cursor.Left, cursor.Top);
-            Console.Write($"{++i*100/pages.Length}%");
+            AnsiConsole.MarkupInterpolated($"[#f9f1a5]{++i*100/pages.Length}%[/]");
         }
-        Console.WriteLine();
     }
 
-    public static async Task<Stat[]> LoadStats(string titleId)
+    public static async Task<Stat[]> LoadStats(Title title)
     {
-        var path = Path.Combine(DataFolder, $"{titleId}.stats.json");
+        var path = GetStatsFilePath(title);
         if (!File.Exists(path))
         {
             return Array.Empty<Stat>();
@@ -368,6 +521,27 @@ public class XblClient
 
         var details = await JsonHelper.FromFile<TitleStats>(path);
         return details.StatListsCollection.Length == 0 ? Array.Empty<Stat>() : details.StatListsCollection[0].Stats;
+    }
+
+    private static string GetTitlesFilePath(string env) => Path.Combine(DataFolder, $"titles.{env}.json");
+    private static string GetAchievementFilePath(string env, string hexId) => Path.Combine(DataFolder, env, $"{hexId}\\achievements.json");
+    private static string GetAchievementFilePath(Title title) => GetAchievementFilePath(title.IsLive ? Live : Xbox360, title.HexId);
+    private static string GetStatsFilePath(string env, string hexId) => Path.Combine(DataFolder, env, $"{hexId}\\stats.json");
+    private static string GetStatsFilePath(Title title) => GetStatsFilePath(title.IsLive ? Live : Xbox360, title.HexId);
+
+    private static async Task SaveJson(string path, string json)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        await File.WriteAllTextAsync(path, json);
+    }
+
+    private static string ToHexId(string titleId)
+    {
+        var id = uint.Parse(titleId);
+        var bytes = BitConverter.GetBytes(id);
+        bytes.SwapEndian(4);
+        return bytes.ToHex();
     }
 
     #endregion

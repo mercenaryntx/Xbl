@@ -1,14 +1,10 @@
-﻿using System.Diagnostics;
-using System.Net.NetworkInformation;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Json;
 using Xbl.Client.Models;
-using Xbl.Xbox360.Models;
 
 namespace Xbl.Client;
 
@@ -31,12 +27,12 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
         var error = await Update(client);
         if (error < 0) return error;
 
-        error = LoadXbox360Profile(client);
+        error = await ImportXbox360Profile(client);
         if (error < 0) return error;
 
-        if (!string.IsNullOrEmpty(settings.KustoQueryPath))
+        if (!string.IsNullOrEmpty(settings.KustoQuery))
         {
-            if (!File.Exists(settings.KustoQueryPath))
+            if (settings.KustoQuery.EndsWith(".kql", StringComparison.InvariantCultureIgnoreCase) && !File.Exists(settings.KustoQuery))
             {
                 return ShowError("KQL file cannot be found");
             }
@@ -81,57 +77,15 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
         return await client.Update(client.Settings.Update);
     }
 
-    private static int LoadXbox360Profile(XblClient client)
+    private static async Task<int> ImportXbox360Profile(XblClient client)
     {
-        if (!string.IsNullOrWhiteSpace(client.Settings.ProfilePath))
-        {
-            var load = !string.IsNullOrEmpty(client.Settings.KustoQueryPath)
-                ? client.Settings.KustoQuerySource ?? "titles"
-                : client.Settings.Query is "summary" or "completeness"
-                    ? "titles"
-                    : "";
-
-            int error;
-            switch (load)
-            {
-                case "achievements":
-                    error = LoadXboxProfileData(client.Settings, path => client.AdditionalAchievements = X360Profile.MapProfileToAchievementArray(path));
-                    if (error < 0) return error;
-                    break;
-                case "titles":
-                    error = LoadXboxProfileData(client.Settings, path => client.AdditionalTitles = X360Profile.MapProfileToTitleArray(path));
-                    if (error < 0) return error;
-                    break;
-            }
-        }
-
-        return 0;
-    }
-
-    private static int LoadXboxProfileData(XblSettings settings, Action<string> action)
-    {
-        AnsiConsole.Markup("[silver]Extracting Xbox 360 profile... [/]");
-
-        if (!File.Exists(settings.ProfilePath))
+        if (string.IsNullOrWhiteSpace(client.Settings.ProfilePath)) return 0;
+        if (!File.Exists(client.Settings.ProfilePath))
         {
             return ShowError("Profile cannot be found");
         }
 
-        var sw = Stopwatch.StartNew();
-
-        try
-        {
-            action(settings.ProfilePath);
-        }
-        catch
-        {
-            ShowError("Profile cannot be loaded");
-        }
-
-        AnsiConsole.MarkupLineInterpolated($"[#16c60c]OK[/] [silver]({sw.ElapsedMilliseconds}ms)[/]");
-        Console.WriteLine();
-     
-        return 0;
+        return await client.Import();
     }
 
     private static int ShowError(string error)
@@ -191,7 +145,7 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
             Name = "Lorem ipsum",
             TitleId = "10027721",
             TitleName = "dolor sit amet",
-            ProgressState = "Achieved",
+            IsUnlocked = true,
             TimeUnlocked = DateTime.Parse("2016-09-11T12:25:10.6860000Z"),
             Platform = "Xbox360|XboxOne|XboxSeries",
             Description = "Lorem ipsum",
@@ -237,7 +191,6 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
             StringStyle = red,
             NullStyle = Color.Silver
         };
-
     }
 
 }

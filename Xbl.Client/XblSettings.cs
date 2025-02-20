@@ -14,8 +14,8 @@ public sealed class XblSettings : CommandSettings
     public bool ExtendedHelp { get; init; }
 
     [CommandOption("-k|--kql")]
-    [Description("Your Kustom query (*.kql) path")]
-    public string KustoQueryPath { get; set; }
+    [Description("Your Kustom query or *.kql file path")]
+    public string KustoQuery { get; set; }
 
     [CommandOption("-l|--limit")]
     [Description("Limit of the items displayed [grey](default=50)[/]")]
