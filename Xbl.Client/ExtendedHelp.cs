@@ -2,99 +2,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Spectre.Console;
-using Spectre.Console.Cli;
 using Spectre.Console.Json;
 using Xbl.Client.Models;
 
 namespace Xbl.Client;
 
-internal sealed class XblApp : AsyncCommand<XblSettings>
+public class ExtendedHelp : IExtendedHelp
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, XblSettings settings)
-    {
-        if (settings.ExtendedHelp)
-        {
-            return PrintExtendedHelp();
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.ApiKey) && !Guid.TryParse(settings.ApiKey, out _))
-        {
-            return ShowError("Invalid API key");
-        }
-
-        var client = new XblClient(settings);
-
-        var error = await Update(client);
-        if (error < 0) return error;
-
-        error = await ImportXbox360Profile(client);
-        if (error < 0) return error;
-
-        if (!string.IsNullOrEmpty(settings.KustoQuery))
-        {
-            if (settings.KustoQuery.EndsWith(".kql", StringComparison.InvariantCultureIgnoreCase) && !File.Exists(settings.KustoQuery))
-            {
-                return ShowError("KQL file cannot be found");
-            }
-
-            return await client.RunKustoQuery();
-        }
-
-        switch (settings.Query)
-        {
-            case null:
-                break;
-            case "summary":
-                await client.Count();
-                break;
-            case "rarity":
-                await client.RarestAchievements();
-                break;
-            case "completeness":
-                await client.MostComplete();
-                break;
-            case "time":
-                await client.SpentMostTimeWith();
-                break;
-            case "weighted-rarity":
-                await client.WeightedRarity();
-                break;
-            default:
-                return ShowError("Unknown query alias");
-        }
-
-        return 0;
-    }
-
-    private static async Task<int> Update(XblClient client)
-    {
-        if (client.Settings.Update is not ("all" or "achievements" or "stats")) return 0;
-
-        if (string.IsNullOrWhiteSpace(client.Settings.ApiKey))
-        {
-            return ShowError("API key is not set");
-        }
-        return await client.Update(client.Settings.Update);
-    }
-
-    private static async Task<int> ImportXbox360Profile(XblClient client)
-    {
-        if (string.IsNullOrWhiteSpace(client.Settings.ProfilePath)) return 0;
-        if (!File.Exists(client.Settings.ProfilePath))
-        {
-            return ShowError("Profile cannot be found");
-        }
-
-        return await client.Import();
-    }
-
-    private static int ShowError(string error)
-    {
-        AnsiConsole.MarkupLineInterpolated($"[red]Error:[/] [silver]{error}[/]");
-        return -1;
-    }
-
-    private static int PrintExtendedHelp()
+    public int Print()
     {
         var titles = PrintJsonPanel(GetTitleExample(), "titles");
         var stats = PrintJsonPanel(GetStatExample(), "stats");
@@ -192,5 +107,4 @@ internal sealed class XblApp : AsyncCommand<XblSettings>
             NullStyle = Color.Silver
         };
     }
-
 }

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace Xbl.Client;
+namespace Xbl.Client.Io;
 
 internal static class JsonHelper
 {

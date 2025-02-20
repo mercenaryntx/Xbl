@@ -1,14 +1,13 @@
 ﻿using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using KustoLoco.Core;
 using KustoLoco.Rendering;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using Xbl.Client.Models;
 
-namespace Xbl.Client;
+namespace Xbl.Client.Io;
 
-public class XblConsole : IOutput
+public class ConsoleOutput : IConsole
 {
     public void RarestAchievements(IEnumerable<RarestAchievementItem> data)
     {
@@ -117,4 +116,34 @@ public class XblConsole : IOutput
         return cell?.ToString() ?? "<null>";
     }
 
+    public void Markup(string text)
+    {
+        AnsiConsole.Markup(text);
+    }
+
+    public void MarkupLine(string text)
+    {
+        AnsiConsole.MarkupLine(text);
+    }
+
+    public void MarkupInterpolated(FormattableString text)
+    {
+        AnsiConsole.MarkupInterpolated(text);
+    }
+
+    public void MarkupLineInterpolated(FormattableString text)
+    {
+        AnsiConsole.MarkupLineInterpolated(text);
+    }
+
+    public int ShowError(string error)
+    {
+        AnsiConsole.MarkupLine("[red]Error:[/] " + error);
+        return -1;
+    }
+
+    public void Write(IRenderable table)
+    {
+        AnsiConsole.Write(table);
+    }
 }

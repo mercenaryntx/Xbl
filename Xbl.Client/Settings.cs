@@ -3,7 +3,7 @@ using Spectre.Console.Cli;
 
 namespace Xbl.Client;
 
-public sealed class XblSettings : CommandSettings
+public sealed class Settings : CommandSettings
 {
     [CommandOption("-a|--api-key")]
     [Description("OpenXBL API Key for Xbox One and Series S|X profile information")]

@@ -1,7 +1,7 @@
 ﻿using KustoLoco.Core;
 using Xbl.Client.Models;
 
-namespace Xbl.Client;
+namespace Xbl.Client.Io;
 
 public interface IOutput
 {

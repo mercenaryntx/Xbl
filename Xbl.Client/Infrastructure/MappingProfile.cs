@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using Xbl.Client.Models;
 
-namespace Xbl.Client.Mapping;
+namespace Xbl.Client.Infrastructure;
 
 public class MappingProfile : Profile
 {

@@ -6,9 +6,9 @@ using NotNullStrings;
 using Spectre.Console;
 using Xbl.Client.Models;
 
-namespace Xbl.Client;
+namespace Xbl.Client.Io;
 
-public class XblJson : IOutput
+public class JsonOutput : IOutput
 {
     public void RarestAchievements(IEnumerable<RarestAchievementItem> rarest)
     {
