@@ -3,7 +3,7 @@ using KustoLoco.Core;
 using KustoLoco.Rendering;
 using Spectre.Console;
 using Spectre.Console.Rendering;
-using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl;
 
 namespace Xbl.Client.Io;
 

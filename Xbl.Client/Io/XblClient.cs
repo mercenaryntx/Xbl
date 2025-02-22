@@ -1,20 +1,29 @@
-﻿using System.Net.Http.Json;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Text.Json;
-using Xbl.Client.Models;
+using Spectre.Console;
+using Xbl.Client.Models.Dbox;
+using Xbl.Client.Models.Xbl;
+using Xbl.Client.Repositories;
+using Xbl.Xbox360.Extensions;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Xbl.Client.Io;
 
 public class XblClient : IXblClient
 {
     private readonly Settings _settings;
-    private readonly IJsonRepository _repository;
+    private readonly IXblRepository _xbl;
+    private readonly IDboxRepository _dbox;
     private readonly IConsole _console;
     private readonly HttpClient _client = new();
 
-    public XblClient(Settings settings, IJsonRepository repository, IConsole console)
+    public XblClient(Settings settings, IXblRepository xbl, IDboxRepository dbox, IConsole console)
     {
         _settings = settings;
-        _repository = repository;
+        _xbl = xbl;
+        _dbox = dbox;
         _console = console;
         _client.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
         _client.BaseAddress = new Uri("https://xbl.io/api/v2/");
@@ -22,21 +31,24 @@ public class XblClient : IXblClient
 
     public async Task<int> Update()
     {
+        var marketplace = await _dbox.GetMarketplaceProducts();
+        var store = await _dbox.GetStoreProducts();
         var update = _settings.Update;
         try
         {
             _console.Markup("[white]Getting titles... [/]");
-            await GetLiveTitles();
-            var titles = await _repository.LoadTitles(false);
+            //await GetLiveTitles();
+            var titles = await _xbl.LoadTitles(false);
+            Console.WriteLine();
+            titles = titles.Select(t => CleanupTitle(t, store, marketplace)).ToArray();
+            await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), titles);
             _console.MarkupLineInterpolated($"[#16c60c]OK[/] [white][[{titles.Length}]][/]");
 
             if (update is "all" or "achievements")
             {
-                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.IsMobile);
-                var x360 = src.Where(t => t.IsXbox360);
-                var rest = src.Where(t => !t.IsXbox360);
-                await UpdateLiveTitles(rest, "Live achievements", GetAchievements);
-                await UpdateLiveTitles(x360, "X360 achievements", Get360Achievements);
+                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Platform.Mobile));
+                await UpdateLiveTitles(src.Where(t => t.OriginalConsole != Device.Xbox360), "Live achievements", GetAchievements);
+                await UpdateLiveTitles(src.Where(t => t.OriginalConsole == Device.Xbox360), "X360 achievements", Get360Achievements);
             }
             if (update is "all" or "stats")
             {
@@ -52,11 +64,56 @@ public class XblClient : IXblClient
         }
     }
 
+    public Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
+    {
+        title.Source = DataSource.Live;
+        title.HexId = ToHexId(title.IntId);
+
+        store.TryGetValue(title.HexId, out var sp);
+
+        if (sp != null)
+        {
+            title.Category = sp.Category;
+            title.Products = sp.Versions.ToDictionary(kvp => kvp.Key, kvp => new TitleProduct
+            {
+                TitleId = sp.TitleId,
+                ProductId = kvp.Value.ProductId
+            });
+            title.OriginalConsole = title.Products.Keys.OrderBy(k => k).First(k => k.StartsWith("Xbox"));
+            return title;
+        }
+        
+        marketplace.TryGetValue(title.HexId, out var mp);
+        if (mp == null) return title;
+
+        //TODO: title.Category = mp?.Category;
+        title.IsBackCompat = true;
+        title.OriginalConsole = Device.Xbox360;
+        title.Products = new Dictionary<string, TitleProduct>
+        {
+            {
+                Device.Xbox360,
+                new TitleProduct {TitleId = mp.TitleId, ProductId = mp.Versions[Device.Xbox360].ProductId}
+            }
+        };
+        var sp2 = store.Values.SingleOrDefault(p => p.Title.StartsWith("[Fission]") && p.Title.EndsWith($"({title.HexId})"));
+        if (sp2 != null)
+        {
+            title.Products.Add("BackCompat", new TitleProduct
+            {
+                TitleId = sp2.TitleId,
+                ProductId = sp2.Versions[Device.Xbox360].ProductId
+            });
+        }
+
+        return title;
+    }
+
     private async Task UpdateLiveTitles(IEnumerable<Title> titles, string type, Func<Title, Task> updateLogic)
     {
         var changes = titles.Where(title =>
         {
-            var x = new FileInfo(_repository.GetAchievementFilePath(title));
+            var x = new FileInfo(_xbl.GetAchievementFilePath(title));
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
@@ -74,35 +131,36 @@ public class XblClient : IXblClient
     public async Task GetLiveTitles()
     {
         var s = await _client.GetStringAsync("achievements/");
-        await _repository.SaveJson(_repository.GetTitlesFilePath(Constants.Live), s);
+        await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), s);
     }
 
     public async Task GetAchievements(Title title)
     {
-        var s = await _client.GetStringAsync("achievements/title/" + title.TitleId);
-        await _repository.SaveJson(_repository.GetAchievementFilePath(title), s);
+        var s = await _client.GetStringAsync("achievements/title/" + title.IntId);
+        await _xbl.SaveJson(_xbl.GetAchievementFilePath(title), s);
     }
 
     public async Task Get360Achievements(Title title)
     {
-        var s = await _client.GetStringAsync($"achievements/x360/{_repository.Xuid}/title/{title.TitleId}");
-        await _repository.SaveJson(_repository.GetAchievementFilePath(title), s);
+        var s = await _client.GetStringAsync($"achievements/x360/{_xbl.Xuid}/title/{title.IntId}");
+        //TODO: set title name
+        await _xbl.SaveJson(_xbl.GetAchievementFilePath(title), s);
     }
 
     public async Task GetStatsBulk(IEnumerable<Title> titles)
     {
         var changes = titles.Where(title =>
         {
-            if (title.IsMobile || title.IsXbox360) return false;
-            var x = new FileInfo(_repository.GetStatsFilePath(title));
+            if (title.CompatibleDevices.Contains(Platform.Mobile) || title.OriginalConsole == Device.Xbox360) return false;
+            var x = new FileInfo(_xbl.GetStatsFilePath(title));
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
-        var a = await JsonHelper.FromFile<AchievementTitles>(_repository.GetTitlesFilePath(Constants.Live));
+        var a = await _xbl.LoadJson<AchievementTitles>(_xbl.GetTitlesFilePath(DataSource.Live));
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
             XUIDs = new[] { a.Xuid },
-            Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.TitleId }).ToArray()
+            Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.IntId }).ToArray()
         }).ToArray();
 
         _console.MarkupInterpolated($"[white]Updating stats...[/] ");
@@ -132,11 +190,18 @@ public class XblClient : IXblClient
                         }
                     }
                 };
-                var json = JsonSerializer.Serialize(titleStats);
-                await _repository.SaveJson(_repository.GetStatsFilePath(Constants.Live, stat.TitleId), json);
+                await _xbl.SaveJson(_xbl.GetStatsFilePath(DataSource.Live, stat.TitleId), titleStats);
             }
             Console.SetCursorPosition(cursor.Left, cursor.Top);
             _console.MarkupInterpolated($"[#f9f1a5]{++i*100/pages.Length}%[/]");
         }
+    }
+
+    private static string ToHexId(string titleId)
+    {
+        var id = uint.Parse(titleId);
+        var bytes = BitConverter.GetBytes(id);
+        bytes.SwapEndian(4);
+        return bytes.ToHex();
     }
 }

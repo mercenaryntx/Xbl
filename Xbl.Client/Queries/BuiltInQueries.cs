@@ -1,17 +1,18 @@
 ﻿using Spectre.Console;
 using Xbl.Client.Io;
-using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl;
+using Xbl.Client.Repositories;
 
 namespace Xbl.Client.Queries;
 
 public class BuiltInQueries : IBuiltInQueries
 {
     private readonly Settings _settings;
-    private readonly IJsonRepository _repository;
+    private readonly IXblRepository _repository;
     private readonly IConsole _console;
     private readonly IOutput _output;
 
-    public BuiltInQueries(Settings settings, IJsonRepository repository, IConsole console)
+    public BuiltInQueries(Settings settings, IXblRepository repository, IConsole console)
     {
         _settings = settings;
         _repository = repository;
@@ -40,8 +41,8 @@ public class BuiltInQueries : IBuiltInQueries
         table.AddColumn("[bold]Gamerscore[/]", c => c.Alignment = Justify.Right);
         table.AddColumn("[bold]Hours played[/]", c => c.Alignment = Justify.Right);
 
-        RenderProfile(table, titles.Where(t => t.IsLive).ToArray(), "Xbox Live", "green3_1");
-        var x360 = titles.Where(t => !t.IsLive).ToArray();
+        RenderProfile(table, titles.Where(t => t.Source == DataSource.Live).ToArray(), "Xbox Live", "green3_1");
+        var x360 = titles.Where(t => t.Source == DataSource.Xbox360).ToArray();
         if (x360.Length > 0)
         {
             RenderProfile(table, x360, "Xbox 360", "cyan1");

@@ -1,32 +1,49 @@
-﻿using Spectre.Console.Cli;
+﻿using System.Diagnostics;
+using Spectre.Console.Cli;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
+using Xbl.Client.Repositories;
 
 namespace Xbl.Client;
 
 public sealed class App : AsyncCommand<Settings>
 {
     private readonly IExtendedHelp _extendedHelp;
-    private readonly IXblClient _client;
+    private readonly IXblClient _xblClient;
     private readonly IXbox360ProfileImporter _importer;
     private readonly IKustoQueryExecutor _kustoQueryExecutor;
     private readonly IBuiltInQueries _builtInQueries;
+    private readonly IDboxRepository _dbox;
     private readonly IConsole _console;
 
     private Settings _settings;
 
-    public App(IConsole console, IExtendedHelp extendedHelp, IXblClient client, IXbox360ProfileImporter importer, IKustoQueryExecutor kustoQueryExecutor, IBuiltInQueries builtInQueries)
+    public App(IConsole console, IExtendedHelp extendedHelp, IXblClient xblClient, IXbox360ProfileImporter importer, IKustoQueryExecutor kustoQueryExecutor, IBuiltInQueries builtInQueries, IDboxRepository dbox)
     {
         _console = console;
         _extendedHelp = extendedHelp;
-        _client = client;
+        _xblClient = xblClient;
         _importer = importer;
         _kustoQueryExecutor = kustoQueryExecutor;
         _builtInQueries = builtInQueries;
+        _dbox = dbox;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        //var store = await _dbox.GetStoreProducts();
+        ////var types = store.Values.SelectMany(p => p.Select(pp => pp.ProductType)).GroupBy(p => p).ToDictionary(g => g.Key, g => g.Count());
+        //var filtered = store.Values.Where(p => p.Length > 1);
+        try
+        {
+            //await _dbox.ConvertStoreProducts();
+            //await _dbox.ConvertMarketplaceProducts();
+        }
+        catch (Exception ex)
+        {
+            Debugger.Break();
+        }
+
         _settings = settings;
 
         if (settings.ExtendedHelp)
@@ -84,7 +101,7 @@ public sealed class App : AsyncCommand<Settings>
         {
             return _console.ShowError("API key is not set");
         }
-        return await _client.Update();
+        return await _xblClient.Update();
     }
 
     private async Task<int> ImportXbox360Profile()
@@ -98,8 +115,3 @@ public sealed class App : AsyncCommand<Settings>
         return await _importer.Import();
     }
 }
-
-//if (settings.KustoQuery.EndsWith(".kql", StringComparison.InvariantCultureIgnoreCase) && !File.Exists(settings.KustoQuery))
-//{
-//    return _console.ShowError("KQL file cannot be found");
-//}

@@ -5,6 +5,7 @@ using Spectre.Console.Cli;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
+using Xbl.Client.Repositories;
 
 namespace Xbl.Client;
 
@@ -37,14 +38,16 @@ public class Program
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
 
         var services = new ServiceCollection();
-        services.AddSingleton<IConsole, ConsoleOutput>();
-        services.AddSingleton<IJsonRepository, JsonRepository>();
-        services.AddSingleton<IXblClient, XblClient>();
-        services.AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>();
-        services.AddSingleton<IBuiltInQueries, BuiltInQueries>();
-        services.AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>();
-        services.AddSingleton<IExtendedHelp, ExtendedHelp>();
-        services.AddSingleton(config.CreateMapper());
+        services.AddSingleton<IConsole, ConsoleOutput>()
+                .AddSingleton<IXblClient, XblClient>()
+                .AddSingleton<IDboxClient, DboxClient>()
+                .AddSingleton<IXblRepository, XblRepository>()
+                .AddSingleton<IDboxRepository, DboxRepository>()
+                .AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>()
+                .AddSingleton<IBuiltInQueries, BuiltInQueries>()
+                .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
+                .AddSingleton<IExtendedHelp, ExtendedHelp>()
+                .AddSingleton(config.CreateMapper());
 
         return new XblTypeRegistrar(services);
     }

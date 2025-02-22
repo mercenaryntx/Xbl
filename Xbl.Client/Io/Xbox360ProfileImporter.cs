@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
-using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl;
+using Xbl.Client.Repositories;
 using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Gpd;
 using Xbl.Xbox360.Io.Stfs;
@@ -11,10 +12,10 @@ namespace Xbl.Client.Io;
 public class Xbox360ProfileImporter : IXbox360ProfileImporter
 {
     private readonly Settings _settings;
-    private readonly IJsonRepository _repository;
+    private readonly IXblRepository _repository;
     private readonly IConsole _console;
 
-    public Xbox360ProfileImporter(Settings settings, IJsonRepository repository, IConsole console)
+    public Xbox360ProfileImporter(Settings settings, IXblRepository repository, IConsole console)
     {
         _settings = settings;
         _repository = repository;
@@ -40,9 +41,8 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 Xuid = profileHex,
                 Titles = GetTitlesFromProfile(profile)
             };
-
-            var json = JsonSerializer.Serialize(titles);
-            await _repository.SaveJson(_repository.GetTitlesFilePath(Constants.Xbox360), json);
+            
+            await _repository.SaveJson(_repository.GetTitlesFilePath(DataSource.Xbox360), titles);
 
             var i = 0;
             var n = 0;
@@ -55,9 +55,8 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     Achievements = GetAchievementsFromGameFile(fileEntry, game, out var hadBug)
                 };
                 if (hadBug) n++;
-
-                json = JsonSerializer.Serialize(achievements);
-                await _repository.SaveJson(_repository.GetAchievementFilePath(Constants.Xbox360, game.TitleId), json);
+                
+                await _repository.SaveJson(_repository.GetAchievementFilePath(DataSource.Xbox360, game.TitleId), achievements);
 
                 Console.SetCursorPosition(cursor.Left, cursor.Top);
                 _console.MarkupLineInterpolated($"[#f9f1a5]{++i * 100 / profile.Games.Count}%[/]");
@@ -86,12 +85,16 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             {
                 var t = new Title
                 {
-                    TitleId = BitConverter.ToInt32(g.TitleCode.FromHex()).ToString(),
+                    IntId = BitConverter.ToInt32(g.TitleCode.FromHex()).ToString(),
                     HexId = g.TitleCode,
                     Name = g.TitleName,
                     Type = "Game",
-                    IsXbox360 = true,
-                    Achievement = new AchievementSummary
+                    OriginalConsole = Device.Xbox360,
+                    CompatibleDevices = new[] { Device.Xbox360 },
+                    Source = DataSource.Xbox360,
+                    Products = null, //TODO
+                    Category = null, //TODO
+					Achievement = new AchievementSummary
                     {
                         CurrentAchievements = g.AchievementsUnlocked,
                         CurrentGamerscore = g.GamerscoreUnlocked,

@@ -1,5 +1,5 @@
 ﻿using KustoLoco.Core;
-using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl;
 
 namespace Xbl.Client.Io;
 
