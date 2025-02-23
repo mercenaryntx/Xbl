@@ -77,19 +77,26 @@ public class ConsoleOutput : IConsole
     public void SpentMostTimeWith(IEnumerable<MinutesPlayed> data)
     {
         var chart = new BreakdownChart().Width(120);
-
-        var exclude = new[] {"Default", "Black", "White", "Silver"};
-        var type = typeof(Color);
-        var colors = type.GetProperties(BindingFlags.Static | BindingFlags.Public).Where(pi =>
-                pi.PropertyType == type && !exclude.Contains(pi.Name) &&
-                !pi.Name.Contains("grey", StringComparison.InvariantCultureIgnoreCase)).Select(pi => pi.GetValue(null))
-            .Cast<Color>()
-            .ToArray();
+        var colors = GetColorScheme();
 
         var i = 0;
         foreach (var (title, played) in data)
         {
             chart.AddItem(title, Math.Round(TimeSpan.FromMinutes(played).TotalHours, 2), colors[i++]);
+        }
+
+        AnsiConsole.Write(chart);
+    }
+
+    public void Categories(IEnumerable<CategorySlice> slices)
+    {
+        var chart = new BreakdownChart().Width(120);
+        var colors = GetColorScheme();
+
+        var i = 0;
+        foreach (var (category, count) in slices)
+        {
+            chart.AddItem(category, count, colors[i++]);
         }
 
         AnsiConsole.Write(chart);
@@ -114,6 +121,17 @@ public class ConsoleOutput : IConsole
     private static string CellToString(object cell)
     {
         return cell?.ToString() ?? "<null>";
+    }
+
+    private static Color[] GetColorScheme()
+    {
+        var exclude = new[] { "Default", "Black", "White", "Silver" };
+        var type = typeof(Color);
+        return type.GetProperties(BindingFlags.Static | BindingFlags.Public).Where(pi =>
+                pi.PropertyType == type && !exclude.Contains(pi.Name) &&
+                !pi.Name.Contains("grey", StringComparison.InvariantCultureIgnoreCase)).Select(pi => pi.GetValue(null))
+            .Cast<Color>()
+            .ToArray();
     }
 
     public void Markup(string text)

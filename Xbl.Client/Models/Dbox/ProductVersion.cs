@@ -4,6 +4,7 @@ public class ProductVersion
 {
     public string Title { get; set; }
     public string ProductId { get; set; }
+    public DateTime? ReleaseDate { get; set; }
     public string LegacyWindowsStoreProductId { get; set; }
     public string LegacyWindowsStoreParentProductId { get; set; }
     public string LegacyWindowsPhoneProductId { get; set; }

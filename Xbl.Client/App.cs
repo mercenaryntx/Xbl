@@ -31,9 +31,6 @@ public sealed class App : AsyncCommand<Settings>
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        //var store = await _dbox.GetStoreProducts();
-        ////var types = store.Values.SelectMany(p => p.Select(pp => pp.ProductType)).GroupBy(p => p).ToDictionary(g => g.Key, g => g.Count());
-        //var filtered = store.Values.Where(p => p.Length > 1);
         try
         {
             //await _dbox.ConvertStoreProducts();
@@ -85,6 +82,16 @@ public sealed class App : AsyncCommand<Settings>
                 break;
             case "weighted-rarity":
                 await _builtInQueries.WeightedRarity();
+                break;
+            case "categories":
+                try
+                {
+                    await _builtInQueries.Categories();
+                }
+                catch (Exception ex)
+                {
+                    Debugger.Break();
+                }
                 break;
             default:
                 return _console.ShowError("Unknown query alias");

@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using System.Globalization;
+using Spectre.Console;
 using Xbl.Client.Io;
 using Xbl.Client.Models.Xbl;
 using Xbl.Client.Repositories;
@@ -129,5 +130,17 @@ public class BuiltInQueries : IBuiltInQueries
         )).OrderByDescending(a => a.Weight).Take(_settings.Limit);
 
         _output.WeightedRarity(mostRare);
+    }
+
+    public async Task Categories()
+    {
+        var titles = await _repository.LoadTitles();
+
+        var data = titles
+            .GroupBy(t => t.Category ?? "Other", StringComparer.InvariantCultureIgnoreCase)
+            .Select(g => new CategorySlice(g.Key, g.Count()))
+            .OrderByDescending(c => c.Count);
+
+        _output.Categories(data);
     }
 }

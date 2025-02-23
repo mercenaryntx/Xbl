@@ -41,7 +41,7 @@ public class XblClient : IXblClient
             var titles = await _xbl.LoadTitles(false);
             Console.WriteLine();
             titles = titles.Select(t => CleanupTitle(t, store, marketplace)).ToArray();
-            await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), titles);
+            await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), new AchievementTitles { Titles = titles, Xuid = _xbl.Xuid });
             _console.MarkupLineInterpolated($"[#16c60c]OK[/] [white][[{titles.Length}]][/]");
 
             if (update is "all" or "achievements")
@@ -62,6 +62,11 @@ public class XblClient : IXblClient
             Console.WriteLine();
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
         }
+        //catch (Exception ex)
+        //{
+        //    Debugger.Break();
+        //    return -1;
+        //}
     }
 
     public Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
@@ -79,21 +84,26 @@ public class XblClient : IXblClient
                 TitleId = sp.TitleId,
                 ProductId = kvp.Value.ProductId
             });
-            title.OriginalConsole = title.Products.Keys.OrderBy(k => k).First(k => k.StartsWith("Xbox"));
+            title.OriginalConsole = title.Products.Keys.OrderBy(k => k).FirstOrDefault(k => k.StartsWith("Xbox"));
             return title;
         }
         
         marketplace.TryGetValue(title.HexId, out var mp);
         if (mp == null) return title;
 
-        //TODO: title.Category = mp?.Category;
+        title.Category = mp.Category;
         title.IsBackCompat = true;
         title.OriginalConsole = Device.Xbox360;
         title.Products = new Dictionary<string, TitleProduct>
         {
             {
                 Device.Xbox360,
-                new TitleProduct {TitleId = mp.TitleId, ProductId = mp.Versions[Device.Xbox360].ProductId}
+                new TitleProduct
+                {
+                    TitleId = mp.TitleId, 
+                    ProductId = mp.Versions[Device.Xbox360].ProductId,
+                    ReleaseDate = mp.Versions[Device.Xbox360].ReleaseDate
+                }
             }
         };
         var sp2 = store.Values.SingleOrDefault(p => p.Title.StartsWith("[Fission]") && p.Title.EndsWith($"({title.HexId})"));

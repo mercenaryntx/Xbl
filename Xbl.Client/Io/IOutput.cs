@@ -10,4 +10,5 @@ public interface IOutput
     void MostComplete(IEnumerable<Title> data);
     void SpentMostTimeWith(IEnumerable<MinutesPlayed> data);
     void KustoQueryResult(KustoQueryResult result);
+    void Categories(IEnumerable<CategorySlice> slices);
 }

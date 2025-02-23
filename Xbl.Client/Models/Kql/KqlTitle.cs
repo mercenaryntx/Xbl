@@ -12,6 +12,5 @@ public class KqlTitle
     public int ProgressPercentage { get; set; }
     public DateTime LastTimePlayed { get; set; }
     public DateTime? ReleaseDate { get; set; }
-    public string ProductId { get; set; }
-    public string ProductCatalog { get; set; }
+    public string Category { get; set; }
 }

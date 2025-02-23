@@ -33,21 +33,11 @@ public class MappingProfile : Profile
         CreateMap<MarketplaceProduct, Product>()
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))
             .ForMember(d => d.Versions, o => o.Ignore())
-            .ForMember(d => d.Category, o => o.MapFrom((s, _, d) =>
-            {
-                var a = new HashSet<string>(d?.Split(',') ?? Array.Empty<string>());
-                foreach (var c in s.Categories)
-                {
-                    a.Add(c.ToString());
-                }
-
-                return string.Join(',', a);
-            }));
-
-        //o.MapFrom((s, _, d, c) => MapMarketplaceProductVersion(s, d, c))
+            .ForMember(d => d.Category, o => o.Ignore());
 
         CreateMap<MarketplaceProduct, ProductVersion>()
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))
+            .ForMember(d => d.ReleaseDate, o => o.MapFrom(s => s.GlobalOriginalReleaseDate))
             .ForMember(d => d.XboxConsoleGenCompatible, o => o.MapFrom(s => new [] { Device.Xbox360 }));
 
         CreateMap<Achievement, KqlAchievement>()
@@ -66,18 +56,6 @@ public class MappingProfile : Profile
             .ForMember(d => d.TotalGamerscore, o => o.MapFrom(s => s.Achievement.TotalGamerscore))
             .ForMember(d => d.ProgressPercentage, o => o.MapFrom(s => s.Achievement.ProgressPercentage))
             .ForMember(d => d.LastTimePlayed, o => o.MapFrom(s => s.TitleHistory.LastTimePlayed));
-
-        CreateMap<MarketplaceProduct, KqlTitle>()
-            .ForMember(d => d.ReleaseDate, o => o.MapFrom(s => s.GlobalOriginalReleaseDate))
-            .ForMember(d => d.ProductId, o => o.MapFrom(s => s.ProductId))
-            .ForMember(d => d.ProductCatalog, o => o.MapFrom(s => "Marketplace"))
-            .ForAllMembers(o => o.Ignore());
-
-        CreateMap<StoreProduct, KqlTitle>()
-            .ForMember(d => d.ProductId, o => o.MapFrom(s => s.ProductId))
-            .ForMember(d => d.ProductCatalog, o => o.MapFrom(s => "Store"))
-            .ForAllMembers(o => o.Ignore());
-
     }
 
     private static string MapPlatform(IEnumerable<string> platforms)

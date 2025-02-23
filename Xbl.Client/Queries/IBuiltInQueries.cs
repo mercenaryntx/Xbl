@@ -7,4 +7,5 @@ public interface IBuiltInQueries
     Task MostComplete();
     Task SpentMostTimeWith();
     Task WeightedRarity();
+    Task Categories();
 }

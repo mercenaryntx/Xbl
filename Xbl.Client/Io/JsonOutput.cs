@@ -30,6 +30,11 @@ public class JsonOutput : IOutput
         Write(minutesPlayed, "time");
     }
 
+    public void Categories(IEnumerable<CategorySlice> slices)
+    {
+        Write(slices, "categories");
+    }
+
     public void KustoQueryResult(KustoQueryResult result)
     {
         var json = result.ToJsonString();

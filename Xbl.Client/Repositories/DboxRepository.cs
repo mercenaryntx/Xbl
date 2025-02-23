@@ -1,6 +1,8 @@
-﻿using AutoMapper;
+﻿using System.Diagnostics;
+using AutoMapper;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Io;
+using System.Linq;
 
 namespace Xbl.Client.Repositories;
 
@@ -29,7 +31,10 @@ public class DboxRepository : RepositoryBase, IDboxRepository
 
     public async Task ConvertMarketplaceProducts()
     {
+        var categories = await LoadJson<Category[]>(Path.Combine(DataSource.DataFolder, DataSource.Dbox, "categories.json"));
+        var cat = categories.ToDictionary(c => c.Id);
         var collections = await LoadCollections<MarketplaceProductCollection>($"_{DataTable.Marketplace}");
+
         var grouping = collections.SelectMany(c => c.Products).GroupBy(p => p.TitleId).Select(g =>
         {
             var p = new Product { Versions = new Dictionary<string, ProductVersion> { { Device.Xbox360, new ProductVersion() }}};
@@ -38,6 +43,7 @@ public class DboxRepository : RepositoryBase, IDboxRepository
                 i.DefaultTitle = i.DefaultTitle.Replace("Full Game - ", "");
                 _mapper.Map(i, p);
                 _mapper.Map(i, p.Versions[Device.Xbox360]);
+                if (cat.TryGetValue(i.Categories.Last(), out var category)) p.Category = category.Name;
             }
 
             return p;

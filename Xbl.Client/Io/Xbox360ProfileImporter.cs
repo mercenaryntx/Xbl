@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl;
 using Xbl.Client.Repositories;
 using Xbl.Xbox360.Extensions;
@@ -13,12 +13,14 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
 {
     private readonly Settings _settings;
     private readonly IXblRepository _repository;
-    private readonly IConsole _console;
+	private readonly IDboxRepository _dbox;
+	private readonly IConsole _console;
 
-    public Xbox360ProfileImporter(Settings settings, IXblRepository repository, IConsole console)
+    public Xbox360ProfileImporter(Settings settings, IXblRepository repository, IDboxRepository dbox, IConsole console)
     {
         _settings = settings;
         _repository = repository;
+        _dbox = dbox;
         _console = console;
     }
 
@@ -28,7 +30,9 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
         var cursor = Console.GetCursorPosition();
         _console.MarkupLine("[#f9f1a5]0%[/]");
 
-        try
+        var marketplace = await _dbox.GetMarketplaceProducts();
+
+		try
         {
             var profilePath = _settings.ProfilePath;
             var bytes = await File.ReadAllBytesAsync(profilePath);
@@ -39,7 +43,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             var titles = new AchievementTitles
             {
                 Xuid = profileHex,
-                Titles = GetTitlesFromProfile(profile)
+                Titles = GetTitlesFromProfile(profile, marketplace)
             };
             
             await _repository.SaveJson(_repository.GetTitlesFilePath(DataSource.Xbox360), titles);
@@ -75,7 +79,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
         }
     }
 
-    private static Title[] GetTitlesFromProfile(StfsPackage profile)
+    private static Title[] GetTitlesFromProfile(StfsPackage profile, Dictionary<string, Product> marketplace)
     {
         return profile
             .ProfileInfo
@@ -83,7 +87,11 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             .Where(g => !string.IsNullOrEmpty(g.TitleName))
             .Select(g =>
             {
-                var t = new Title
+                marketplace.TryGetValue(g.TitleCode, out var mp);
+                var product = mp?.Versions[Device.Xbox360];
+				//marketplace[].Versions[Device.Xbox360];
+
+				var t = new Title
                 {
                     IntId = BitConverter.ToInt32(g.TitleCode.FromHex()).ToString(),
                     HexId = g.TitleCode,
@@ -92,8 +100,14 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     OriginalConsole = Device.Xbox360,
                     CompatibleDevices = new[] { Device.Xbox360 },
                     Source = DataSource.Xbox360,
-                    Products = null, //TODO
-                    Category = null, //TODO
+                    Products = new Dictionary<string, TitleProduct> {
+                        { Device.Xbox360, new TitleProduct {
+                            TitleId = g.TitleCode,
+                            ProductId = product?.ProductId,
+                            ReleaseDate = product?.ReleaseDate
+						} }
+                    }, 
+                    Category = mp?.Category,
 					Achievement = new AchievementSummary
                     {
                         CurrentAchievements = g.AchievementsUnlocked,
@@ -105,7 +119,6 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 };
 
                 return t;
-
             })
             .ToArray();
     }
