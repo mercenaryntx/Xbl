@@ -30,7 +30,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
         {
             await _console.Progress(async ctx =>
             {
-                var task = ctx.AddTask("[white]Importing profile[/]", maxValue: 4);
+                var task = ctx.AddTask("[white]Importing X360 profile[/]", maxValue: 4);
                 var marketplace = await _dbox.GetMarketplaceProducts();
                 task.Increment(1);
 
@@ -49,7 +49,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     Titles = GetTitlesFromProfile(profile, marketplace)
                 };
 
-                await _repository.SaveJson(_repository.GetTitlesFilePath(DataSource.Xbox360), titles);
+                await _repository.SaveTitles(DataSource.Xbox360, titles);
                 task.Increment(1);
 
                 var task2 = ctx.AddTask("[white]Importing achievements[/]", maxValue: profile.Games.Count);
@@ -65,7 +65,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     };
                     if (hadBug) bugs.Add($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries were omitted.");
 
-                    await _repository.SaveJson(_repository.GetAchievementFilePath(DataSource.Xbox360, game.TitleId), achievements);
+                    await _repository.SaveAchievements(DataSource.Xbox360, game.TitleId, achievements);
                     task2.Increment(1);
                 }
             });

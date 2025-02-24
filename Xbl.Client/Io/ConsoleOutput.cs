@@ -3,6 +3,7 @@ using KustoLoco.Core;
 using KustoLoco.Rendering;
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Xbl;
 
 namespace Xbl.Client.Io;
@@ -165,7 +166,7 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(table);
     }
 
-    public Task Progress(Func<ProgressContext, Task> action)
+    public Task Progress(Func<IProgressContext, Task> action)
     {
         return AnsiConsole
             .Progress()
@@ -177,6 +178,6 @@ public class ConsoleOutput : IConsole
                 new ProgressBarColumn(),
                 new PercentageColumn()
             })
-            .StartAsync(action);
+            .StartAsync(ctx => action(new ProgressContextWrapper(ctx)));
     }
 }

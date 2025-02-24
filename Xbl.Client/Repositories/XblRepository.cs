@@ -8,19 +8,41 @@ public class XblRepository : RepositoryBase, IXblRepository
 {
     private readonly IMapper _mapper;
 
-    public string Xuid { get; private set; }
+    public Task SaveTitles(string source, AchievementTitles titles)
+    {
+        return SaveJson(GetTitlesFilePath(source), titles);
+    }
+
+    public Task SaveAchievements(Title title, string achievements)
+    {
+        return SaveJson(GetAchievementFilePath(title), achievements);
+    }
+
+    public Task SaveAchievements(string source, string titleId, TitleDetails<Achievement> achievements)
+    {
+        return SaveJson(GetAchievementFilePath(source, titleId), achievements);
+    }
+
+    public Task SaveStats(string source, string titleId, TitleStats stats)
+    {
+        return SaveJson(GetStatsFilePath(DataSource.Live, titleId), stats);
+    }
+
+    public DateTime GetAchievementSaveDate(Title title)
+    {
+        return new FileInfo(GetAchievementFilePath(title)).LastAccessTimeUtc;
+    }
+
+    public DateTime GetStatsSaveDate(Title title)
+    {
+        return new FileInfo(GetStatsFilePath(title)).LastAccessTimeUtc;
+    }
 
     public XblRepository(IMapper mapper)
     {
         _mapper = mapper;
     }
 
-    public string GetTitlesFilePath(string env) => Path.Combine(DataSource.DataFolder, $"titles.{env}.json");
-    public string GetAchievementFilePath(string env, string hexId) => Path.Combine(DataSource.DataFolder, env, $"{hexId}\\{DataTable.Achievements}.json");
-    public string GetAchievementFilePath(Title title) => GetAchievementFilePath(title.Source, title.HexId);
-    public string GetStatsFilePath(string env, string hexId) => Path.Combine(DataSource.DataFolder, env, $"{hexId}\\{DataTable.Stats}.json");
-    public string GetStatsFilePath(Title title) => GetStatsFilePath(title.Source, title.HexId);
-    
     public async Task<Title[]> LoadTitles(bool union = true)
     {
         var path = GetTitlesFilePath(DataSource.Live);
@@ -31,7 +53,6 @@ public class XblRepository : RepositoryBase, IXblRepository
         }
 
         var a = await LoadJson<AchievementTitles>(path);
-        Xuid = a.Xuid;
         IEnumerable<Title> titles = a.Titles.OrderByDescending(t => t.Achievement.ProgressPercentage);
 
         path = GetTitlesFilePath(DataSource.Xbox360);
@@ -74,4 +95,10 @@ public class XblRepository : RepositoryBase, IXblRepository
         var details = await LoadJson<TitleStats>(path);
         return details.StatListsCollection.Length == 0 ? Array.Empty<Stat>() : details.StatListsCollection[0].Stats;
     }
+
+    private string GetTitlesFilePath(string env) => Path.Combine(DataSource.DataFolder, $"titles.{env}.json");
+    private string GetAchievementFilePath(string env, string hexId) => Path.Combine(DataSource.DataFolder, env, $"{hexId}\\{DataTable.Achievements}.json");
+    private string GetAchievementFilePath(Title title) => GetAchievementFilePath(title.Source, title.HexId);
+    private string GetStatsFilePath(string env, string hexId) => Path.Combine(DataSource.DataFolder, env, $"{hexId}\\{DataTable.Stats}.json");
+    private string GetStatsFilePath(Title title) => GetStatsFilePath(title.Source, title.HexId);
 }

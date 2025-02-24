@@ -1,5 +1,5 @@
-﻿using Spectre.Console;
-using Spectre.Console.Rendering;
+﻿using Spectre.Console.Rendering;
+using Xbl.Client.Infrastructure;
 
 namespace Xbl.Client.Io;
 
@@ -13,5 +13,5 @@ public interface IConsole : IOutput
     int ShowError(string error);
     void Write(IRenderable table);
 
-    Task Progress(Func<ProgressContext, Task> action);
+    Task Progress(Func<IProgressContext, Task> action);
 }

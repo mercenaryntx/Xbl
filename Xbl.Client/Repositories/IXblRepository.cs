@@ -4,13 +4,19 @@ namespace Xbl.Client.Repositories;
 
 public interface IXblRepository : IRepository
 {
-    public string Xuid { get; }
+    Task SaveTitles(string source, AchievementTitles titles);
+    Task SaveAchievements(Title title, string achievements);
+    Task SaveAchievements(string source, string titleId, TitleDetails<Achievement> achievements);
+    Task SaveStats(string source, string titleId, TitleStats stats);
 
-    string GetTitlesFilePath(string env);
-    string GetAchievementFilePath(string env, string hexId);
-    string GetAchievementFilePath(Title title);
-    string GetStatsFilePath(string env, string hexId);
-    string GetStatsFilePath(Title title);
+    DateTime GetAchievementSaveDate(Title title);
+    DateTime GetStatsSaveDate(Title title);
+
+    //string GetTitlesFilePath(string env);
+    //string GetAchievementFilePath(string env, string hexId);
+    //string GetAchievementFilePath(Title title);
+    //string GetStatsFilePath(string env, string hexId);
+    //string GetStatsFilePath(Title title);
 
     Task<Title[]> LoadTitles(bool union = true);
     Task<Achievement[]> LoadAchievements(Title title);

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="Infrastructure\" />
+    <Folder Include="Io\" />
   </ItemGroup>
 
 </Project>
