@@ -10,8 +10,8 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<LiveAchievement, Achievement>()
-            .ForMember(d => d.TitleId, o => o.MapFrom(s => long.Parse(s.Id)))
+        CreateMap<LiveAchievement, Achievement>(MemberList.None)
+            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.TitleAssociations[0].Id))
             .ForMember(d => d.TitleName, o => o.MapFrom(s => s.TitleAssociations[0].Name))
             .ForMember(d => d.TimeUnlocked, o => o.MapFrom(s => s.Progression.TimeUnlocked))
             .ForMember(d => d.Unlocked, o => o.MapFrom(s => s.ProgressState == "Achieved"))
@@ -28,14 +28,16 @@ public class MappingProfile : Profile
             .ForMember(d => d.Category, o => o.MapFrom(s => s.First().Category))
             .ForMember(d => d.Versions, o => o.MapFrom((s, _, _, c) => MapStoreProductVersions(s, c)));
 
-        CreateMap<StoreProduct, ProductVersion>();
+        CreateMap<StoreProduct, ProductVersion>()
+            .ForMember(d => d.ReleaseDate, o => o.Ignore());
 
         CreateMap<MarketplaceProduct, Product>()
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))
             .ForMember(d => d.Versions, o => o.Ignore())
-            .ForMember(d => d.Category, o => o.Ignore());
+            .ForMember(d => d.Category, o => o.Ignore())
+            .ForMember(d => d.ProductGroupId, o => o.Ignore());
 
-        CreateMap<MarketplaceProduct, ProductVersion>()
+        CreateMap<MarketplaceProduct, ProductVersion>(MemberList.None)
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))
             .ForMember(d => d.ReleaseDate, o => o.MapFrom(s => s.GlobalOriginalReleaseDate))
             .ForMember(d => d.XboxConsoleGenCompatible, o => o.MapFrom(s => new [] { Device.Xbox360 }));
@@ -49,13 +51,20 @@ public class MappingProfile : Profile
             .ForMember(d => d.Minutes, o => o.MapFrom(s => s.IntValue));
 
         CreateMap<Title, KqlTitle>()
+            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.HexId))
             .ForMember(d => d.CompatibleWith, o => o.MapFrom(s => string.Join('|', s.CompatibleDevices)))
             .ForMember(d => d.CurrentAchievements, o => o.MapFrom(s => s.Achievement.CurrentAchievements))
             .ForMember(d => d.TotalAchievements, o => o.MapFrom(s => s.Achievement.TotalAchievements))
             .ForMember(d => d.CurrentGamerscore, o => o.MapFrom(s => s.Achievement.CurrentGamerscore))
             .ForMember(d => d.TotalGamerscore, o => o.MapFrom(s => s.Achievement.TotalGamerscore))
             .ForMember(d => d.ProgressPercentage, o => o.MapFrom(s => s.Achievement.ProgressPercentage))
-            .ForMember(d => d.LastTimePlayed, o => o.MapFrom(s => s.TitleHistory.LastTimePlayed));
+            .ForMember(d => d.LastTimePlayed, o => o.MapFrom(s => s.TitleHistory.LastTimePlayed))
+            .ForMember(d => d.Xbox360ProductId, o => o.MapFrom(s => MapProductId(s, Device.Xbox360)))
+            .ForMember(d => d.Xbox360ReleaseDate, o => o.MapFrom(s => MapReleaseDate(s, Device.Xbox360)))
+            .ForMember(d => d.XboxOneProductId, o => o.MapFrom(s => MapProductId(s, Device.XboxOne)))
+            .ForMember(d => d.XboxOneReleaseDate, o => o.MapFrom(s => MapReleaseDate(s, Device.XboxOne)))
+            .ForMember(d => d.XboxSeriesProductId, o => o.MapFrom(s => MapProductId(s, Device.XboxSeries)))
+            .ForMember(d => d.XboxSeriesReleaseDate, o => o.MapFrom(s => MapReleaseDate(s, Device.XboxSeries)));
     }
 
     private static string MapPlatform(IEnumerable<string> platforms)
@@ -117,5 +126,15 @@ public class MappingProfile : Profile
         }
 
         return d;
+    }
+
+    private static string MapProductId(Title s, string device)
+    {
+        return !s.Products.TryGetValue(device, out var p) ? null : p.ProductId;
+    }
+
+    private static DateTime? MapReleaseDate(Title s, string device)
+    {
+        return !s.Products.TryGetValue(device, out var p) ? null : p.ReleaseDate;
     }
 }

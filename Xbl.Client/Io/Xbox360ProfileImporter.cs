@@ -4,7 +4,6 @@ using Xbl.Client.Repositories;
 using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Gpd;
 using Xbl.Xbox360.Io.Stfs;
-using Xbl.Xbox360.Io.Stfs.Data;
 using Xbl.Xbox360.Models;
 
 namespace Xbl.Client.Io;
@@ -26,51 +25,55 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
 
     public async Task<int> Import()
     {
-        _console.MarkupInterpolated($"[white]Importing Xbox 360 profile...[/] ");
-        var cursor = Console.GetCursorPosition();
-        _console.MarkupLine("[#f9f1a5]0%[/]");
-
-        var marketplace = await _dbox.GetMarketplaceProducts();
-
+        var bugs = new List<string>();
 		try
         {
-            var profilePath = _settings.ProfilePath;
-            var bytes = await File.ReadAllBytesAsync(profilePath);
-            var profile = ModelFactory.GetModel<StfsPackage>(bytes);
-            profile.ExtractGames();
-
-            var profileHex = Path.GetFileName(profilePath);
-            var titles = new AchievementTitles
+            await _console.Progress(async ctx =>
             {
-                Xuid = profileHex,
-                Titles = GetTitlesFromProfile(profile, marketplace)
-            };
-            
-            await _repository.SaveJson(_repository.GetTitlesFilePath(DataSource.Xbox360), titles);
+                var task = ctx.AddTask("[white]Importing profile[/]", maxValue: 4);
+                var marketplace = await _dbox.GetMarketplaceProducts();
+                task.Increment(1);
 
-            var i = 0;
-            var n = 0;
-            foreach (var (fileEntry, game) in profile.Games)
-            {
-                game.Parse();
+                var profilePath = _settings.ProfilePath;
+                var bytes = await File.ReadAllBytesAsync(profilePath);
+                var profile = ModelFactory.GetModel<StfsPackage>(bytes);
+                task.Increment(1);
 
-                var achievements = new TitleDetails<Achievement>
+                profile.ExtractGames();
+                task.Increment(1);
+
+                var profileHex = Path.GetFileName(profilePath);
+                var titles = new AchievementTitles
                 {
-                    Achievements = GetAchievementsFromGameFile(fileEntry, game, out var hadBug)
+                    Xuid = profileHex,
+                    Titles = GetTitlesFromProfile(profile, marketplace)
                 };
-                if (hadBug) n++;
-                
-                await _repository.SaveJson(_repository.GetAchievementFilePath(DataSource.Xbox360, game.TitleId), achievements);
 
-                Console.SetCursorPosition(cursor.Left, cursor.Top);
-                _console.MarkupLineInterpolated($"[#f9f1a5]{++i * 100 / profile.Games.Count}%[/]");
-            }
+                await _repository.SaveJson(_repository.GetTitlesFilePath(DataSource.Xbox360), titles);
+                task.Increment(1);
 
-            for (i = 0; i < n; i++)
+                var task2 = ctx.AddTask("[white]Importing achievements[/]", maxValue: profile.Games.Count);
+
+                var i = 0;
+                foreach (var (fileEntry, game) in profile.Games)
+                {
+                    game.Parse();
+
+                    var achievements = new TitleDetails<Achievement>
+                    {
+                        Achievements = GetAchievementsFromGameFile(game, out var hadBug)
+                    };
+                    if (hadBug) bugs.Add($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries were omitted.");
+
+                    await _repository.SaveJson(_repository.GetAchievementFilePath(DataSource.Xbox360, game.TitleId), achievements);
+                    task2.Increment(1);
+                }
+            });
+            foreach (var bug in bugs)
             {
-                Console.WriteLine();
+                _console.MarkupLine(bug);
             }
-
+            if (bugs.Count > 0) _console.MarkupLine("");
             return 0;
         }
         catch (Exception ex)
@@ -122,9 +125,9 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             .ToArray();
     }
 
-    private Achievement[] GetAchievementsFromGameFile(FileEntry fileEntry, GameFile game, out bool hadBug)
+    private static Achievement[] GetAchievementsFromGameFile(GameFile game, out bool hadBug)
     {
-        var bugReported = false;
+        var bug = false;
         var achievements = game.Achievements.Select(a =>
         {
             try
@@ -148,14 +151,12 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             }
             catch
             {
-                if (bugReported) return null;
-                _console.MarkupLineInterpolated($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries are omitted.");
-                bugReported = true;
+                bug = true;
                 return null;
             }
         }).Where(a => a != null).ToArray();
 
-        hadBug = bugReported;
+        hadBug = bug;
         return achievements;
     }
 

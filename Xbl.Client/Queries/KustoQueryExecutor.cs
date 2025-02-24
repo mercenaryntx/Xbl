@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Diagnostics;
 using AutoMapper;
 using KustoLoco.Core;
 using Xbl.Client.Io;
@@ -12,16 +11,14 @@ public class KustoQueryExecutor : IKustoQueryExecutor
 {
     private readonly Settings _settings;
     private readonly IXblRepository _xbl;
-    private readonly IDboxRepository _dbox;
     private readonly IConsole _console;
     private readonly IMapper _mapper;
     private readonly IOutput _output;
 
-    public KustoQueryExecutor(Settings settings, IXblRepository xbl, IDboxRepository dbox, IConsole console, IMapper mapper)
+    public KustoQueryExecutor(Settings settings, IXblRepository xbl, IConsole console, IMapper mapper)
     {
         _settings = settings;
         _xbl = xbl;
-        _dbox = dbox;
         _console = console;
         _mapper = mapper;
         _output = settings.Output?.ToLower() switch
@@ -40,7 +37,6 @@ public class KustoQueryExecutor : IKustoQueryExecutor
         if (sources.Length == 0) sources = new[] {DataTable.Titles, DataTable.Achievements, DataTable.Stats};
         foreach (var source in sources)
         {
-            var sw = Stopwatch.StartNew();
             switch (source)
             {
                 case DataTable.Achievements:
@@ -64,7 +60,6 @@ public class KustoQueryExecutor : IKustoQueryExecutor
                     context.WrapDataIntoTable(DataTable.Titles, titles.Select(_mapper.Map<KqlTitle>).ToImmutableArray());
                     break;
             }
-            _console.MarkupLineInterpolated($"[cyan1]{source}[/] {sw.ElapsedMilliseconds}ms");
         }
 
         var kql = _settings.KustoQuery;

@@ -164,4 +164,19 @@ public class ConsoleOutput : IConsole
     {
         AnsiConsole.Write(table);
     }
+
+    public Task Progress(Func<ProgressContext, Task> action)
+    {
+        return AnsiConsole
+            .Progress()
+            .AutoClear(false)
+            .Columns(new ProgressColumn[]
+            {
+                new SpinnerColumn(Spinner.Known.Dots2),
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn()
+            })
+            .StartAsync(action);
+    }
 }

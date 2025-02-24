@@ -1,5 +1,4 @@
-﻿using System.Net.Http.Headers;
-using Xbl.Client.Models.Dbox;
+﻿using Xbl.Client.Models.Dbox;
 using Xbl.Client.Repositories;
 
 namespace Xbl.Client.Io;
@@ -7,17 +6,16 @@ namespace Xbl.Client.Io;
 public class DboxClient : IDboxClient
 {
     private readonly Settings _settings;
+    private readonly HttpClient _client;
     private readonly IDboxRepository _repository;
     private readonly IConsole _console;
-    private readonly HttpClient _client = new();
 
-    public DboxClient(Settings settings, IDboxRepository repository, IConsole console)
+    public DboxClient(Settings settings, HttpClient client, IDboxRepository repository, IConsole console)
     {
         _settings = settings;
+        _client = client;
         _repository = repository;
         _console = console;
-        _client.BaseAddress = new Uri("https://dbox.tools/api/");
-        _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     public async Task<int> Update()

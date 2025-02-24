@@ -7,5 +7,5 @@ public class TitleAssociation
     [JsonPropertyName("name")]
     public string Name { get; set; }
     [JsonPropertyName("id")]
-    public long Id { get; set; }
+    public int Id { get; set; }
 }

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.Net.Http.Headers;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
@@ -39,15 +40,26 @@ public class Program
 
         var services = new ServiceCollection();
         services.AddSingleton<IConsole, ConsoleOutput>()
-                .AddSingleton<IXblClient, XblClient>()
-                .AddSingleton<IDboxClient, DboxClient>()
-                .AddSingleton<IXblRepository, XblRepository>()
-                .AddSingleton<IDboxRepository, DboxRepository>()
-                .AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>()
-                .AddSingleton<IBuiltInQueries, BuiltInQueries>()
-                .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
-                .AddSingleton<IExtendedHelp, ExtendedHelp>()
-                .AddSingleton(config.CreateMapper());
+            .AddSingleton<IXblRepository, XblRepository>()
+            .AddSingleton<IDboxRepository, DboxRepository>()
+            .AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>()
+            .AddSingleton<IBuiltInQueries, BuiltInQueries>()
+            .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
+            .AddSingleton<IExtendedHelp, ExtendedHelp>()
+            .AddSingleton(config.CreateMapper());
+
+        services.AddHttpClient<IXblClient, XblClient>((s, c) =>
+                {
+                    var settings = s.GetRequiredService<Settings>();
+                    c.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
+                    c.BaseAddress = new Uri("https://xbl.io/api/v2/");
+                });
+
+        services.AddHttpClient<IDboxClient, DboxClient>(c =>
+                {
+                    c.BaseAddress = new Uri("https://dbox.tools/api/");
+                    c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                });
 
         return new XblTypeRegistrar(services);
     }

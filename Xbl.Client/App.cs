@@ -48,11 +48,6 @@ public sealed class App : AsyncCommand<Settings>
             return _extendedHelp.Print();
         }
 
-        if (!string.IsNullOrWhiteSpace(settings.ApiKey) && !Guid.TryParse(settings.ApiKey, out _))
-        {
-            return _console.ShowError("Invalid API key");
-        }
-
         var error = await Update();
         if (error < 0) return error;
 
@@ -84,14 +79,7 @@ public sealed class App : AsyncCommand<Settings>
                 await _builtInQueries.WeightedRarity();
                 break;
             case "categories":
-                try
-                {
-                    await _builtInQueries.Categories();
-                }
-                catch (Exception ex)
-                {
-                    Debugger.Break();
-                }
+                await _builtInQueries.Categories();
                 break;
             default:
                 return _console.ShowError("Unknown query alias");
@@ -102,6 +90,11 @@ public sealed class App : AsyncCommand<Settings>
 
     private async Task<int> Update()
     {
+        if (!string.IsNullOrWhiteSpace(_settings.ApiKey) && !Guid.TryParse(_settings.ApiKey, out _))
+        {
+            return _console.ShowError("Invalid API key");
+        }
+
         if (_settings.Update is not ("all" or "achievements" or "stats")) return 0;
 
         if (string.IsNullOrWhiteSpace(_settings.ApiKey))

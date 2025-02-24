@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using Spectre.Console;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl;
 using Xbl.Client.Repositories;
@@ -13,43 +14,37 @@ public class XblClient : IXblClient
     private readonly IXblRepository _xbl;
     private readonly IDboxRepository _dbox;
     private readonly IConsole _console;
-    private readonly HttpClient _client = new();
+    private readonly HttpClient _client;
 
-    public XblClient(Settings settings, IXblRepository xbl, IDboxRepository dbox, IConsole console)
+    public XblClient(Settings settings, HttpClient client, IXblRepository xbl, IDboxRepository dbox, IConsole console)
     {
         _settings = settings;
+        _client = client;
         _xbl = xbl;
         _dbox = dbox;
         _console = console;
-        _client.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
-        _client.BaseAddress = new Uri("https://xbl.io/api/v2/");
     }
 
     public async Task<int> Update()
     {
-        var marketplace = await _dbox.GetMarketplaceProducts();
-        var store = await _dbox.GetStoreProducts();
         var update = _settings.Update;
         try
         {
-            _console.Markup("[white]Getting titles... [/]");
-            //await GetLiveTitles();
-            var titles = await _xbl.LoadTitles(false);
-            Console.WriteLine();
-            titles = titles.Select(t => CleanupTitle(t, store, marketplace)).ToArray();
-            await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), new AchievementTitles { Titles = titles, Xuid = _xbl.Xuid });
-            _console.MarkupLineInterpolated($"[#16c60c]OK[/] [white][[{titles.Length}]][/]");
+            await _console.Progress(async ctx =>
+            {
+                var titles = await UpdateTitles(ctx);
 
-            if (update is "all" or "achievements")
-            {
-                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile));
-                await UpdateLiveTitles(src.Where(t => t.OriginalConsole != Device.Xbox360), "Live achievements", GetAchievements);
-                await UpdateLiveTitles(src.Where(t => t.OriginalConsole == Device.Xbox360), "X360 achievements", Get360Achievements);
-            }
-            if (update is "all" or "stats")
-            {
-                await GetStatsBulk(titles);
-            }
+                if (update is "all" or "achievements")
+                {
+                    var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile));
+                    await UpdateAchievements(ctx, src.Where(t => t.OriginalConsole != Device.Xbox360), "Live achievements", GetAchievements);
+                    await UpdateAchievements(ctx, src.Where(t => t.OriginalConsole == Device.Xbox360), "X360 achievements", Get360Achievements);
+                }
+                if (update is "all" or "stats")
+                {
+                    await GetStatsBulk(ctx, titles);
+                }
+            });
 
             return 0;
         }
@@ -60,7 +55,24 @@ public class XblClient : IXblClient
         }
     }
 
-    public Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
+    private async Task<Title[]> UpdateTitles(ProgressContext ctx)
+    {
+        var task = ctx.AddTask("[white]Getting titles[/]", maxValue: 5);
+        var marketplace = await _dbox.GetMarketplaceProducts();
+        task.Increment(1);
+        var store = await _dbox.GetStoreProducts();
+        task.Increment(1);
+        await GetLiveTitles();
+        var titles = await _xbl.LoadTitles(false);
+        task.Increment(1);
+        titles = titles.Select(t => CleanupTitle(t, store, marketplace)).ToArray();
+        task.Increment(1);
+        await _xbl.SaveJson(_xbl.GetTitlesFilePath(DataSource.Live), new AchievementTitles { Titles = titles, Xuid = _xbl.Xuid });
+        task.Increment(1);
+        return titles;
+    }
+
+    private static Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
     {
         title.Source = DataSource.Live;
         title.HexId = ToHexId(title.IntId);
@@ -110,7 +122,7 @@ public class XblClient : IXblClient
         return title;
     }
 
-    private async Task UpdateLiveTitles(IEnumerable<Title> titles, string type, Func<Title, Task> updateLogic)
+    private async Task UpdateAchievements(ProgressContext ctx, IEnumerable<Title> titles, string type, Func<Title, Task> updateLogic)
     {
         var changes = titles.Where(title =>
         {
@@ -118,14 +130,13 @@ public class XblClient : IXblClient
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();
 
-        _console.MarkupLineInterpolated($"[white]Found[/] [cyan1]{changes.Length}[/] [white]{type} changes[/]");
+        if (changes.Length == 0) return;
 
-        for (var i = 0; i < changes.Length; i++)
+        foreach (var title in changes)
         {
-            var title = changes[i];
-            _console.MarkupInterpolated($"[silver][[{i + 1:D3}/{changes.Length:D3}]][/] [white]Updating [/] [cyan1]{title.Name}[/][white]... [/]");
+            var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title}[/]", maxValue: 1);
             await updateLogic(title);
-            _console.MarkupLine("[#16c60c]OK[/]");
+            task.Increment(1);
         }
     }
 
@@ -148,7 +159,7 @@ public class XblClient : IXblClient
         await _xbl.SaveJson(_xbl.GetAchievementFilePath(title), s);
     }
 
-    public async Task GetStatsBulk(IEnumerable<Title> titles)
+    public async Task GetStatsBulk(ProgressContext ctx, IEnumerable<Title> titles)
     {
         var changes = titles.Where(title =>
         {
@@ -164,11 +175,8 @@ public class XblClient : IXblClient
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.IntId }).ToArray()
         }).ToArray();
 
-        _console.MarkupInterpolated($"[white]Updating stats...[/] ");
-        var cursor = Console.GetCursorPosition();
-        _console.Markup("[#f9f1a5]0%[/]");
+        var task = ctx.AddTask("[white]Updating stats[/]", maxValue: pages.Length);
 
-        var i = 0;
         foreach (var page in pages)
         {
             var response = await _client.PostAsJsonAsync("player/stats", page);
@@ -193,8 +201,7 @@ public class XblClient : IXblClient
                 };
                 await _xbl.SaveJson(_xbl.GetStatsFilePath(DataSource.Live, stat.TitleId), titleStats);
             }
-            Console.SetCursorPosition(cursor.Left, cursor.Top);
-            _console.MarkupInterpolated($"[#f9f1a5]{++i*100/pages.Length}%[/]");
+            task.Increment(1);
         }
     }
 

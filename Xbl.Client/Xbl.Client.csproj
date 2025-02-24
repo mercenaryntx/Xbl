@@ -12,6 +12,7 @@
     <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="KustoLoco.Rendering" Version="1.1.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
     <PackageReference Include="Spectre.Console.Json" Version="0.49.1" />
   </ItemGroup>

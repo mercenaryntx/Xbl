@@ -48,7 +48,12 @@ public class ExtendedHelp : IExtendedHelp
             ProgressPercentage = 56,
             LastTimePlayed = DateTime.Parse("2025-02-02T15:54:38.4848326Z"),
             Category = "Shooter",
-            ReleaseDate = DateTime.Parse("2020-01-01T00:00:00.0000000Z")
+            Xbox360ProductId = "66acd000-77fe-1000-9115-d802305807d3",
+            Xbox360ReleaseDate = DateTime.Parse("2020-01-01T00:00:00.0000000Z"),
+            XboxOneProductId = "9MVHHT21X5F6",
+            XboxOneReleaseDate = DateTime.Parse("2020-01-01T00:00:00.0000000Z"),
+            XboxSeriesProductId = "bx3zk30jl2dl",
+            XboxSeriesReleaseDate = DateTime.Parse("2020-01-01T00:00:00.0000000Z"),
         };
     }
 
