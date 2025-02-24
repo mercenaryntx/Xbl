@@ -18,16 +18,11 @@ public static class DataTable
     public const string Store = "store";
 }
 
-public static class Platform
-{
-    public const string Console = "Console";
-    public const string PC = "PC";
-    public const string Mobile = "Mobile";
-}
-
 public static class Device
 {
     public const string Xbox360 = "Xbox360";
     public const string XboxOne = "XboxOne";
     public const string XboxSeries = "XboxSeries";
+    public const string PC = "PC";
+    public const string Mobile = "Mobile";
 }

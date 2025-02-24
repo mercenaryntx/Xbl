@@ -87,8 +87,8 @@ public class MappingProfile : Profile
             var v = context.Mapper.Map<ProductVersion>(sp);
             if (sp.XboxConsoleGenCompatible == null)
             {
-                if (d.ContainsKey(Platform.PC) && sp.RevisionId < d[Platform.PC].RevisionId) continue;
-                d[Platform.PC] = v;
+                if (d.ContainsKey(Device.PC) && sp.RevisionId < d[Device.PC].RevisionId) continue;
+                d[Device.PC] = v;
                 continue;
             }
 

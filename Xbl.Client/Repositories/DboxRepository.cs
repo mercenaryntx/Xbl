@@ -1,20 +1,15 @@
-﻿using System.Diagnostics;
-using AutoMapper;
+﻿using AutoMapper;
 using Xbl.Client.Models.Dbox;
-using Xbl.Client.Io;
-using System.Linq;
 
 namespace Xbl.Client.Repositories;
 
 public class DboxRepository : RepositoryBase, IDboxRepository
 {
     private readonly IMapper _mapper;
-    private readonly IConsole _console;
 
-    public DboxRepository(IMapper mapper, IConsole console)
+    public DboxRepository(IMapper mapper)
     {
         _mapper = mapper;
-        _console = console;
     }
 
     public async Task<Dictionary<string, Product>> GetMarketplaceProducts()

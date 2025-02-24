@@ -40,13 +40,15 @@ public class ExtendedHelp : IExtendedHelp
         {
             TitleId = "1915865634",
             Name = "Lorem Ipsum: The Game",
-            CompatibleWith = "PC|Xbox360|XboxOne|XboxSeries",
+            CompatibleWith = $"{Device.PC}|{Device.Mobile}|{Device.Xbox360}|{Device.XboxOne}|{Device.XboxSeries}",
             CurrentAchievements = 18,
             TotalAchievements = 0,
             CurrentGamerscore = 560,
             TotalGamerscore = 1000,
             ProgressPercentage = 56,
-            LastTimePlayed = DateTime.Parse("2025-02-02T15:54:38.4848326Z")
+            LastTimePlayed = DateTime.Parse("2025-02-02T15:54:38.4848326Z"),
+            Category = "Shooter",
+            ReleaseDate = DateTime.Parse("2020-01-01T00:00:00.0000000Z")
         };
     }
 
@@ -81,18 +83,18 @@ public class ExtendedHelp : IExtendedHelp
 
     private static JsonText GetJsonText(object o)
     {
-        var scalar = new Color(22, 198, 12); //new Color(74, 222, 128);
-        var member = Color.Cyan1; //new Color(14, 165, 233);
-        var str = Color.Cyan3; //new Color(244, 63, 94);
+        var scalar = new Color(22, 198, 12);
+        var member = Color.Cyan1;
+        var str = Color.Cyan3;
         var colon = new Color(249, 251, 165);
 
-        return new JsonText(JsonSerializer.Serialize(o, new JsonSerializerOptions
+        var jso = new JsonSerializerOptions
         {
             TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {
                 Modifiers =
                 {
-                    (typeInfo) =>
+                    typeInfo =>
                     {
                         foreach (var property in typeInfo.Properties)
                         {
@@ -102,7 +104,9 @@ public class ExtendedHelp : IExtendedHelp
                     }
                 }
             }
-        }))
+        };
+
+        return new JsonText(JsonSerializer.Serialize(o, jso))
         {
             BooleanStyle = scalar,
             NumberStyle = scalar,

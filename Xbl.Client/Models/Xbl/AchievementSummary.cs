@@ -13,10 +13,12 @@ public class AchievementSummary
     [JsonPropertyName("currentGamerscore")]
     public int CurrentGamerscore { get; set; }
 
-    [JsonPropertyName("totalGamerscore")] public int TotalGamerscore { get; set; }
+    [JsonPropertyName("totalGamerscore")] 
+    public int TotalGamerscore { get; set; }
 
     [JsonPropertyName("progressPercentage")]
     public int ProgressPercentage { get; set; }
 
-    [JsonPropertyName("sourceVersion")] public int SourceVersion { get; set; }
+    [JsonPropertyName("sourceVersion")] 
+    public int SourceVersion { get; set; }
 }

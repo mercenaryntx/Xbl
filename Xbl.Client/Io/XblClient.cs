@@ -1,13 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
-using Spectre.Console;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl;
 using Xbl.Client.Repositories;
 using Xbl.Xbox360.Extensions;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Xbl.Client.Io;
 
@@ -46,7 +42,7 @@ public class XblClient : IXblClient
 
             if (update is "all" or "achievements")
             {
-                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Platform.Mobile));
+                var src = titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile));
                 await UpdateLiveTitles(src.Where(t => t.OriginalConsole != Device.Xbox360), "Live achievements", GetAchievements);
                 await UpdateLiveTitles(src.Where(t => t.OriginalConsole == Device.Xbox360), "X360 achievements", Get360Achievements);
             }
@@ -62,11 +58,6 @@ public class XblClient : IXblClient
             Console.WriteLine();
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
         }
-        //catch (Exception ex)
-        //{
-        //    Debugger.Break();
-        //    return -1;
-        //}
     }
 
     public Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
@@ -161,7 +152,7 @@ public class XblClient : IXblClient
     {
         var changes = titles.Where(title =>
         {
-            if (title.CompatibleDevices.Contains(Platform.Mobile) || title.OriginalConsole == Device.Xbox360) return false;
+            if (title.CompatibleDevices.Contains(Device.Mobile) || title.OriginalConsole == Device.Xbox360) return false;
             var x = new FileInfo(_xbl.GetStatsFilePath(title));
             return title.TitleHistory.LastTimePlayed > x.LastWriteTimeUtc;
         }).ToArray();

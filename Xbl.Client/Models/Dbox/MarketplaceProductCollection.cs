@@ -9,8 +9,3 @@ public class MarketplaceProductCollection : IProductCollection
     [JsonPropertyName("count")]
     public int Count { get; set; }
 }
-
-public interface IProductCollection
-{
-    public int Count { get; set; }
-}
