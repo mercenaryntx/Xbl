@@ -174,7 +174,7 @@ public class ConsoleOutput : IConsole
             .Columns(new ProgressColumn[]
             {
                 new SpinnerColumn(Spinner.Known.Dots2),
-                new TaskDescriptionColumn(),
+                new TaskDescriptionColumn { Alignment = Justify.Left },
                 new ProgressBarColumn(),
                 new PercentageColumn()
             })

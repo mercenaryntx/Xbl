@@ -136,7 +136,7 @@ public class XblClient : IXblClient
 
         foreach (var title in changes)
         {
-            var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title}[/]", 1);
+            var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title.Name}[/]", 1);
             await updateLogic(title);
             task.Increment(1);
         }
@@ -151,8 +151,12 @@ public class XblClient : IXblClient
     private async Task Get360Achievements(Title title, string xuid)
     {
         var s = await _client.GetStringAsync($"achievements/x360/{xuid}/title/{title.IntId}");
-        //TODO: set title name
-        await _xbl.SaveAchievements(title, s);
+        var a = JsonSerializer.Deserialize<TitleDetails<Achievement>>(s);
+        foreach (var achievement in a.Achievements)
+        {
+            achievement.TitleName = title.Name;
+        }
+        await _xbl.SaveAchievements(title.Source, title.HexId, a);
     }
 
     private async Task GetStatsBulk(IProgressContext ctx, AchievementTitles titles)
@@ -193,7 +197,7 @@ public class XblClient : IXblClient
                         }
                     }
                 };
-                await _xbl.SaveStats(DataSource.Live, stat.TitleId, titleStats);
+                await _xbl.SaveStats(DataSource.Live, ToHexId(stat.TitleId), titleStats);
             }
             task.Increment(1);
         }

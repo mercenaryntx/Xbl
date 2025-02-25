@@ -17,7 +17,7 @@ public class KqlTitle
     public string XboxOneProductId { get; set; }
     public string XboxSeriesProductId { get; set; }
 
-    public DateTime? Xbox360ReleaseDate { get; set; }
-    public DateTime? XboxOneReleaseDate { get; set; }
-    public DateTime? XboxSeriesReleaseDate { get; set; }
+    public DateTime Xbox360ReleaseDate { get; set; }
+    public DateTime XboxOneReleaseDate { get; set; }
+    public DateTime XboxSeriesReleaseDate { get; set; }
 }

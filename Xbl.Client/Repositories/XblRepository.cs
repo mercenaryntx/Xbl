@@ -18,14 +18,14 @@ public class XblRepository : RepositoryBase, IXblRepository
         return SaveJson(GetAchievementFilePath(title), achievements);
     }
 
-    public Task SaveAchievements(string source, string titleId, TitleDetails<Achievement> achievements)
+    public Task SaveAchievements(string source, string hexId, TitleDetails<Achievement> achievements)
     {
-        return SaveJson(GetAchievementFilePath(source, titleId), achievements);
+        return SaveJson(GetAchievementFilePath(source, hexId), achievements);
     }
 
-    public Task SaveStats(string source, string titleId, TitleStats stats)
+    public Task SaveStats(string source, string hexId, TitleStats stats)
     {
-        return SaveJson(GetStatsFilePath(DataSource.Live, titleId), stats);
+        return SaveJson(GetStatsFilePath(DataSource.Live, hexId), stats);
     }
 
     public DateTime GetAchievementSaveDate(Title title)

@@ -43,6 +43,7 @@ public class MappingProfile : Profile
             .ForMember(d => d.XboxConsoleGenCompatible, o => o.MapFrom(s => new [] { Device.Xbox360 }));
 
         CreateMap<Achievement, KqlAchievement>()
+            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.TitleId.ToString()))
             .ForMember(d => d.IsUnlocked, o => o.MapFrom(s => s.Unlocked))
             .ForMember(d => d.IsRare, o => o.MapFrom(s => s.Rarity.CurrentCategory == "Rare"))
             .ForMember(d => d.RarityPercentage, o => o.MapFrom(s => s.Rarity.CurrentPercentage));
@@ -51,7 +52,7 @@ public class MappingProfile : Profile
             .ForMember(d => d.Minutes, o => o.MapFrom(s => s.IntValue));
 
         CreateMap<Title, KqlTitle>()
-            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.HexId))
+            .ForMember(d => d.TitleId, o => o.MapFrom(s => s.IntId))
             .ForMember(d => d.CompatibleWith, o => o.MapFrom(s => string.Join('|', s.CompatibleDevices)))
             .ForMember(d => d.CurrentAchievements, o => o.MapFrom(s => s.Achievement.CurrentAchievements))
             .ForMember(d => d.TotalAchievements, o => o.MapFrom(s => s.Achievement.TotalAchievements))
@@ -77,6 +78,8 @@ public class MappingProfile : Profile
                 return Device.XboxSeries;
             case "Durango":
                 return Device.XboxOne;
+            case Device.XboxOne:
+                return x;
             default:
                 Debugger.Break();
                 return x;
@@ -130,11 +133,11 @@ public class MappingProfile : Profile
 
     private static string MapProductId(Title s, string device)
     {
-        return !s.Products.TryGetValue(device, out var p) ? null : p.ProductId;
+        return s.Products?.TryGetValue(device, out var p) != true ? null : p.ProductId;
     }
 
     private static DateTime? MapReleaseDate(Title s, string device)
     {
-        return !s.Products.TryGetValue(device, out var p) ? null : p.ReleaseDate;
+        return s.Products?.TryGetValue(device, out var p) != true ? null : p.ReleaseDate;
     }
 }

@@ -6,8 +6,8 @@ public interface IXblRepository : IRepository
 {
     Task SaveTitles(string source, AchievementTitles titles);
     Task SaveAchievements(Title title, string achievements);
-    Task SaveAchievements(string source, string titleId, TitleDetails<Achievement> achievements);
-    Task SaveStats(string source, string titleId, TitleStats stats);
+    Task SaveAchievements(string source, string hexId, TitleDetails<Achievement> achievements);
+    Task SaveStats(string source, string hexId, TitleStats stats);
 
     DateTime GetAchievementSaveDate(Title title);
     DateTime GetStatsSaveDate(Title title);

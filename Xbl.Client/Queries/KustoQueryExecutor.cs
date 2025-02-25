@@ -33,8 +33,8 @@ public class KustoQueryExecutor : IKustoQueryExecutor
         var context = new KustoQueryContext();
         var titles = await _xbl.LoadTitles();
 
-        var sources = _settings.KustoQuerySource.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        if (sources.Length == 0) sources = new[] {DataTable.Titles, DataTable.Achievements, DataTable.Stats};
+        var sources = _settings.KustoQuerySource?.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        if (sources == null || sources.Length == 0) sources = new[] {DataTable.Titles, DataTable.Achievements, DataTable.Stats};
         foreach (var source in sources)
         {
             switch (source)
