@@ -181,7 +181,7 @@ In your KQL query you can use three different data tables: `titles`, `achievemen
 **Xbl CLI** uses [Kusto-Loco](https://github.com/NeilMacMullen/kusto-loco) to support KQL queries that can also render the results as a chart. Charts are rendered to HTML files using the [Vega-Lite](https://vega.github.io/vega-lite/examples/) charting library.
 
 ### Example
-<img src="https://github.com/user-attachments/assets/4cbb5d56-d01f-4319-9fc2-78b33d1619d3" alt="Custom KQL chart example" width="700"/>
+<img src="https://github.com/user-attachments/assets/a1338186-48ab-4f0c-bc26-ba8ee9c7902e" alt="Custom KQL chart example" width="700"/>
 <br><br>
 
 This Stacked Area Chart was created using the following, rather complex, query as a demonstration.<br>
