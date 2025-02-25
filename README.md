@@ -9,18 +9,18 @@ Whether you’re using **Xbox Live** or have an old **Xbox 360** profile, this t
 
 # Prerequisites
 ## Xbox Live
-**Xbl CLI** is built on OpenXBL, an unofficial Xbox Live API.
+**Xbl CLI** is built on OpenXBL, an unofficial Xbox Live API.<br>
 In order to use **Xbl CLI** first you are going to need an OpenXBL registration and a personal API key.
 
 1. Go to [xbl.io](http://xbl.io)
-2. Login with your Xbox account
+2. Login with your Xbox Live account
 3. On the profile page create a new API key
 4. Save it, as you won't be able to recover it from the site later
 
 > [!WARNING]
 > The **free** tier of OpenXBL gives you **150 requests/day** only. Please note that the "requests/hour" title is not correct on the OpenXBL profile page, moreover it takes about 25 hours to reset the counter. 
 
-Because of the daily limitations of OpenXBL you probably won't be able to get all your data at once, but do not worry **Xbl CLI** can work with partial data as well and can incrementally update your data later. By default **Xbl CLI** downloads both achievements and stats, but in order to save requests you can limit update to either `achievements` or `stats`.
+Because of the daily limitations of OpenXBL you probably won't be able to get all your data at once, but do not worry **Xbl CLI** can work with partial data as well and can incrementally update your data later. By default **Xbl CLI** downloads both achievements and stats, but in order to save requests and giving you the power to focus on the data you want you can limit update to either `achievements` or `stats`.
 
 ```
 Xbl -a={YourApiKey} -u
