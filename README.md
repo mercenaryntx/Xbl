@@ -7,6 +7,8 @@ Whether you’re using **Xbox Live** or have an old **Xbox 360** profile, this t
 - **Built-in Queries**: Utilize pre-defined queries to quickly access the data you need.
 - **KQL Capabilities**: Leverage Kusto Query Language (KQL) for advanced data analysis and custom queries.
 
+![Xbl](https://github.com/user-attachments/assets/d1fa3a4e-2d73-454a-9d3c-26bfe0753f06)
+
 # Prerequisites
 ## Xbox Live
 **Xbl CLI** is built on OpenXBL, an unofficial Xbox Live API.<br>
