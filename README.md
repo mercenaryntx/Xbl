@@ -3,9 +3,10 @@
 Whether you’re using **Xbox Live** or have an old **Xbox 360** profile, this tool has you covered.
 
 # Features
-- **Comprehensive Support**: Works seamlessly with both Xbox Live and Xbox 360 profiles.
+- **Comprehensive Compatibility**: Works with both online Xbox Live and offline Xbox 360 profiles, as well as Xbox Store and legacy Marketplace data.
 - **Built-in Queries**: Utilize pre-defined queries to quickly access the data you need.
 - **KQL Capabilities**: Leverage Kusto Query Language (KQL) for advanced data analysis and custom queries.
+- **Versatile Output Formats**: Beautiful console outputs, JSON data and interactive HTML charts export.
 
 ![Xbl](https://github.com/user-attachments/assets/d1fa3a4e-2d73-454a-9d3c-26bfe0753f06)
 
