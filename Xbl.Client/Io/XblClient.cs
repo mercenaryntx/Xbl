@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl;
@@ -81,7 +82,7 @@ public class XblClient : IXblClient
     private static Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
     {
         title.Source = DataSource.Live;
-        title.HexId = ToHexId(title.IntId);
+        title.HexId = title.IntId.ToHexId();
 
         store.TryGetValue(title.HexId, out var sp);
 
@@ -197,17 +198,11 @@ public class XblClient : IXblClient
                         }
                     }
                 };
-                await _xbl.SaveStats(DataSource.Live, ToHexId(stat.TitleId), titleStats);
+                await _xbl.SaveStats(DataSource.Live, stat.TitleId.ToHexId(), titleStats);
             }
             task.Increment(1);
         }
     }
 
-    private static string ToHexId(string titleId)
-    {
-        var id = uint.Parse(titleId);
-        var bytes = BitConverter.GetBytes(id);
-        bytes.SwapEndian(4);
-        return bytes.ToHex();
-    }
+
 }

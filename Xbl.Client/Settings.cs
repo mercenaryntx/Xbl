@@ -30,7 +30,7 @@ public sealed class Settings : CommandSettings
     public string ProfilePath { get; init; }
 
     [CommandOption("-q|--query")]
-    [Description("Select one of the built-in queries: \n  [#f9f1a5]summary[/] - Quick summary about your loaded profiles [grey](default)[/]\n  [#f9f1a5]completeness[/] - Your most complete games\n  [#f9f1a5]time[/] - Games you spent the most time with\n  [#f9f1a5]rarity[/] - Your rarest achievements\n  [#f9f1a5]weighted-rarity[/] - Your games with the most rarest achievements")]
+    [Description("Select one of the built-in queries: \n  [#f9f1a5]summary[/] - Quick summary about your imported profiles [grey](default)[/]\n  [#f9f1a5]completeness[/] - Your most complete games\n  [#f9f1a5]time[/] - Games you spent the most time with\n  [#f9f1a5]rarity[/] - Your rarest achievements\n  [#f9f1a5]weighted-rarity[/] - Your games with the most rarest achievements")]
     public string Query { get; init; }
 
     [CommandOption("-s|--source")]

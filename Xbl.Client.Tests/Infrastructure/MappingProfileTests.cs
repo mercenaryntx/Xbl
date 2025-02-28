@@ -5,29 +5,28 @@ using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Kql;
 using Xbl.Client.Models.Xbl;
+using Xunit;
 
 namespace Xbl.Client.Tests.Infrastructure;
 
-[TestClass]
 public class MappingProfileTests
 {
     private IMapper _mapper;
 
-    [TestInitialize]
-    public void Setup()
+    public MappingProfileTests()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
         _mapper = config.CreateMapper();
     }
 
-    [TestMethod]
+    [Fact]
     public void MappingProfile_ConfigurationIsValid()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
         config.AssertConfigurationIsValid();
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_LiveAchievement_To_Achievement()
     {
         var timeUnlocked = DateTime.Now;
@@ -55,7 +54,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_StoreProductGroup_To_Product()
     {
         var storeProducts = new[]
@@ -84,7 +83,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_StoreProduct_To_ProductVersion()
     {
         var storeProduct = new StoreProduct
@@ -104,7 +103,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_MarketplaceProduct_To_Product()
     {
         var marketplaceProduct = new MarketplaceProduct
@@ -122,7 +121,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_MarketplaceProduct_To_ProductVersion()
     {
         var marketplaceProduct = new MarketplaceProduct
@@ -141,7 +140,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_Achievement_To_KqlAchievement()
     {
         var achievement = new Achievement
@@ -160,7 +159,7 @@ public class MappingProfileTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_Stat_To_KqlMinutesPlayed()
     {
         var stat = new Stat
@@ -175,7 +174,7 @@ public class MappingProfileTests
         kqlMinutesPlayed.Minutes.Should().Be(120);
     }
 
-    [TestMethod]
+    [Fact]
     public void Map_Title_To_KqlTitle()
     {
         var title = new Title

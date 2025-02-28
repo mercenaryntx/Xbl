@@ -5,15 +5,13 @@ using Xbl.Client.Repositories;
 
 namespace Xbl.Client.Tests.Repositories;
 
-[TestClass]
 public class DboxRepositoryTests
 {
     private Mock<IMapper> _mapperMock;
     private Mock<IRepository> _repositoryMock;
     private DboxRepository _dboxRepository;
 
-    [TestInitialize]
-    public void Setup()
+    public DboxRepositoryTests()
     {
         _mapperMock = new Mock<IMapper>();
         _repositoryMock = new Mock<IRepository>();
