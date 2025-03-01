@@ -8,7 +8,8 @@ using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Models.Dbox;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Repositories;
 using Xunit;
 
@@ -228,7 +229,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_GetStatsBulk_ShouldCreateXboxOneStatsFile()
+    public async Task Update_UpdateStats_ShouldCreateXboxOneStatsFile()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
@@ -247,7 +248,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_GetStatsBulk_ShouldNotCreateXboxOneStatsFileIfLastTimePlayedIsOld()
+    public async Task Update_UpdateStats_ShouldNotCreateXboxOneStatsFileIfLastTimePlayedIsOld()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
@@ -267,7 +268,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_GetStatsBulk_ShouldNotCreateXbox360StatsFile()
+    public async Task Update_UpdateStats_ShouldNotCreateXbox360StatsFile()
     {
         // Arrange
         var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
@@ -287,7 +288,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_GetStatsBulk_ShouldNotCreateMobileStatsFile()
+    public async Task Update_UpdateStats_ShouldNotCreateMobileStatsFile()
     {
         // Arrange
         var mob = CreateTestTitle(Device.Mobile, "1915865634");
@@ -306,7 +307,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_GetStatsBulk_ShouldNotCreateXboxOneStatsFileIfUpdateUpdateIsAchievements()
+    public async Task Update_UpdateStats_ShouldNotCreateXboxOneStatsFileIfUpdateUpdateIsAchievements()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
@@ -355,7 +356,7 @@ public class XblClientTests
     }
 
     //[Fact]
-    //public async Task GetStatsBulk_ShouldSaveStats()
+    //public async Task UpdateStats_ShouldSaveStats()
     //{
     //    // Arrange
     //    var titles = new List<Title>
@@ -368,13 +369,13 @@ public class XblClientTests
     //        .ReturnsAsync(new HttpResponseMessage { Content = new StringContent(responseContent) });
 
     //    // Act
-    //    await _xblClient.GetStatsBulk(new ProgressContext(), titles);
+    //    await _xblClient.UpdateStats(new ProgressContext(), titles);
 
     //    // Assert
     //    _xblRepositoryMock.Verify(x => x.SaveJson(It.IsAny<string>(), It.IsAny<object>()), Times.Once);
     //}
 
-    public void Setup(string update = "all")
+    private void Setup(string update = "all")
     {
         SetupXblRepositoryMock();
         SetupDboxRepositoryMock();

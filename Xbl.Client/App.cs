@@ -8,13 +8,13 @@ namespace Xbl.Client;
 
 public sealed class App : AsyncCommand<Settings>
 {
+    private readonly IConsole _console;
     private readonly IExtendedHelp _extendedHelp;
     private readonly IXblClient _xblClient;
     private readonly IXbox360ProfileImporter _importer;
     private readonly IKustoQueryExecutor _kustoQueryExecutor;
     private readonly IBuiltInQueries _builtInQueries;
     private readonly IDboxRepository _dbox;
-    private readonly IConsole _console;
 
     private Settings _settings;
 

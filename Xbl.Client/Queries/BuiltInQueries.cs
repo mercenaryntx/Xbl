@@ -1,6 +1,7 @@
 ﻿using Spectre.Console;
 using Xbl.Client.Io;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Repositories;
 
 namespace Xbl.Client.Queries;

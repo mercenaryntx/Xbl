@@ -4,7 +4,8 @@ using KustoLoco.Rendering;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Xbl.Client.Infrastructure;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl.Achievements;
 
 namespace Xbl.Client.Io;
 

@@ -4,7 +4,8 @@ using KustoLoco.Core.Settings;
 using KustoLoco.Rendering;
 using NotNullStrings;
 using Spectre.Console;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models;
+using Xbl.Client.Models.Xbl.Achievements;
 
 namespace Xbl.Client.Io;
 

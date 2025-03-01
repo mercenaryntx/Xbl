@@ -2,7 +2,8 @@
 using AutoMapper;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Kql;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Player;
 
 namespace Xbl.Client.Infrastructure;
 

@@ -3,7 +3,8 @@ using System.Text.Json;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Repositories;
 
 namespace Xbl.Client.Io;
@@ -54,7 +55,7 @@ public class XblClient : IXblClient
                 }
                 if (update is "all" or "stats")
                 {
-                    await GetStatsBulk(ctx, titles);
+                    await UpdateStats(ctx, titles);
                 }
             });
 
@@ -64,6 +65,17 @@ public class XblClient : IXblClient
         {
             Console.WriteLine();
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+        }
+    }
+
+    public async Task GetGameDetails(IEnumerable<string[]> ids)
+    {
+        foreach (var id in ids)
+        {
+            var response = await _client.PostAsJsonAsync("marketplace/details", new { products = string.Join(',', id) });
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            await _xbl.SaveJson(Path.Combine(DataSource.DataFolder, "xbl", $"details.{DateTime.Now.Ticks}.json"), content);
         }
     }
 
@@ -78,10 +90,9 @@ public class XblClient : IXblClient
 
         var json = await _client.GetStringAsync("achievements/");
         var a = JsonSerializer.Deserialize<AchievementTitles>(json);
-        var titles = a.Titles;
         task.Increment(1);
 
-        a.Titles = titles.Select(t => CleanupTitle(t, store, marketplace)).ToArray();
+        a.Titles = a.Titles.Select(t => EnrichTitle(t, store, marketplace)).ToArray();
         task.Increment(1);
 
         await _xbl.SaveTitles(DataSource.Live, a);
@@ -90,7 +101,7 @@ public class XblClient : IXblClient
         return a;
     }
 
-    private static Title CleanupTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
+    private static Title EnrichTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
     {
         title.Source = DataSource.Live;
         title.HexId = title.IntId.ToHexId();
@@ -171,7 +182,7 @@ public class XblClient : IXblClient
         await _xbl.SaveAchievements(title.Source, title.HexId, a);
     }
 
-    private async Task GetStatsBulk(IProgressContext ctx, AchievementTitles titles)
+    private async Task UpdateStats(IProgressContext ctx, AchievementTitles titles)
     {
         var changes = titles.Titles.Where(title =>
         {

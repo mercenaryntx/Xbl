@@ -1,5 +1,5 @@
 ﻿using Xbl.Client.Models.Dbox;
-using Xbl.Client.Models.Xbl;
+using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Repositories;
 using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Gpd;
@@ -54,7 +54,6 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
 
                 var task2 = ctx.AddTask("[white]Importing achievements[/]", maxValue: profile.Games.Count);
 
-                var i = 0;
                 foreach (var (fileEntry, game) in profile.Games)
                 {
                     game.Parse();

@@ -1,4 +1,5 @@
-﻿using Xbl.Client.Models.Xbl;
+﻿using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Player;
 
 namespace Xbl.Client.Repositories;
 

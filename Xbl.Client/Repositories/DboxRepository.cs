@@ -1,5 +1,8 @@
-﻿using AutoMapper;
+﻿using System.Diagnostics;
+using AutoMapper;
 using Xbl.Client.Models.Dbox;
+using Xbl.Client.Models.Xbl.Marketplace;
+using Product = Xbl.Client.Models.Dbox.Product;
 
 namespace Xbl.Client.Repositories;
 
@@ -48,19 +51,39 @@ public class DboxRepository : RepositoryBase, IDboxRepository
 
     public async Task ConvertStoreProducts()
     {
+        var xblpc = await LoadCollections<XblProductCollection>("details", "xbl");
+        var xblProducts = xblpc.SelectMany(c => c.Products).ToDictionary(p => p.ProductId);
+
         var storeItems = await LoadCollections<StoreProductCollection>($"_{DataTable.Store}");
         var grouping = storeItems
             .SelectMany(c => c.Products)
             .Where(p => !string.IsNullOrEmpty(p.TitleId) && p.ProductType == "Game")
             .GroupBy(p => p.TitleId)
-            .ToDictionary(g => g.Key, _mapper.Map<Product>);
+            .ToDictionary(g => g.Key, p =>
+            {
+                var mapped = _mapper.Map<Product>(p);
+                foreach (var (_, version) in mapped.Versions)
+                {
+                    if (xblProducts.TryGetValue(version.ProductId, out var xblProduct))
+                    {
+                        version.ReleaseDate = xblProduct.MarketProperties[0].OriginalReleaseDate;
+                        if (xblProduct.MarketProperties.Length > 1) Debugger.Break();
+                        mapped.Category = xblProduct.Properties.Category;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Missing XBL product: {version.ProductId} {mapped.Title}");
+                    }
+                }
+                return mapped;
+            });
         await SaveJson(Path.Combine(DataSource.DataFolder, DataSource.Dbox, $"{DataTable.Store}.{DateTime.Now.Ticks}.json"), grouping);
     }
 
-    private async Task<T[]> LoadCollections<T>(string prefix)
+    private async Task<T[]> LoadCollections<T>(string prefix, string folder = DataSource.Dbox)
     {
         var tasks = Directory
-            .GetFiles(Path.Combine(DataSource.DataFolder, DataSource.Dbox), $"{prefix}.*.json")
+            .GetFiles(Path.Combine(DataSource.DataFolder, folder), $"{prefix}.*.json")
             .Select(LoadJson<T>);
 
         return await Task.WhenAll(tasks);
