@@ -5,7 +5,6 @@ using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl;
 using Xbl.Client.Repositories;
-using Xbl.Xbox360.Extensions;
 
 namespace Xbl.Client.Io;
 
@@ -37,9 +36,21 @@ public class XblClient : IXblClient
 
                 if (update is "all" or "achievements")
                 {
-                    var src = titles.Titles.Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile));
-                    await UpdateAchievements(ctx, src.Where(t => t.OriginalConsole != Device.Xbox360), GetAchievements);
-                    await UpdateAchievements(ctx, src.Where(t => t.OriginalConsole == Device.Xbox360), t => Get360Achievements(t, titles.Xuid));
+                    var src = titles.Titles
+                        .Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile))
+                        .GroupBy(t => t.OriginalConsole == Device.Xbox360);
+                    foreach (var grouping in src)
+                    {
+                        switch (grouping.Key)
+                        {
+                            case true:
+                                await UpdateAchievements(ctx, grouping, t => Get360Achievements(t, titles.Xuid));
+                                break;
+                            case false:
+                                await UpdateAchievements(ctx, grouping, GetAchievements);
+                                break;
+                        }
+                    }
                 }
                 if (update is "all" or "stats")
                 {
@@ -97,12 +108,11 @@ public class XblClient : IXblClient
             title.OriginalConsole = title.Products.Keys.OrderBy(k => k).FirstOrDefault(k => k.StartsWith("Xbox"));
             return title;
         }
-        
+
         marketplace.TryGetValue(title.HexId, out var mp);
         if (mp == null) return title;
 
         title.Category = mp.Category;
-        title.IsBackCompat = true;
         title.OriginalConsole = Device.Xbox360;
         title.Products = new Dictionary<string, TitleProduct>
         {
@@ -119,6 +129,7 @@ public class XblClient : IXblClient
         var sp2 = store.Values.SingleOrDefault(p => p.Title.StartsWith("[Fission]") && p.Title.EndsWith($"({title.HexId})"));
         if (sp2 != null)
         {
+            title.IsBackCompat = true;
             title.Products.Add("BackCompat", new TitleProduct
             {
                 TitleId = sp2.TitleId,
@@ -170,7 +181,7 @@ public class XblClient : IXblClient
 
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
-            XUIDs = new[] { titles.Xuid },
+            XUIDs = [titles.Xuid],
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.IntId }).ToArray()
         }).ToArray();
 
@@ -186,23 +197,21 @@ public class XblClient : IXblClient
             {
                 var titleStats = new TitleStats
                 {
-                    Groups = Array.Empty<TitleStatGroup>(),
-                    StatListsCollection = new[]
-                    {
+                    Groups = [],
+                    StatListsCollection =
+                    [
                         new StatList
                         {
-                            Stats = new[]
-                            {
+                            Stats =
+                            [
                                 stat
-                            }
+                            ]
                         }
-                    }
+                    ]
                 };
                 await _xbl.SaveStats(DataSource.Live, stat.TitleId.ToHexId(), titleStats);
             }
             task.Increment(1);
         }
     }
-
-
 }

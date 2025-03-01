@@ -49,7 +49,7 @@ public class XblRepository : RepositoryBase, IXblRepository
         if (!File.Exists(path))
         {
             AnsiConsole.MarkupLine("[red]Error:[/] [silver]Data files cannot be found. Please run an update first[/]");
-            return Array.Empty<Title>();
+            return [];
         }
 
         var a = await LoadJson<AchievementTitles>(path);
@@ -68,7 +68,7 @@ public class XblRepository : RepositoryBase, IXblRepository
     public async Task<Achievement[]> LoadAchievements(Title title)
     {
         var path = GetAchievementFilePath(title);
-        if (!File.Exists(path)) return Array.Empty<Achievement>();
+        if (!File.Exists(path)) return [];
 
         if (title.OriginalConsole == Device.Xbox360)
         {
@@ -89,11 +89,11 @@ public class XblRepository : RepositoryBase, IXblRepository
         var path = GetStatsFilePath(title);
         if (!File.Exists(path))
         {
-            return Array.Empty<Stat>();
+            return [];
         }
 
         var details = await LoadJson<TitleStats>(path);
-        return details.StatListsCollection.Length == 0 ? Array.Empty<Stat>() : details.StatListsCollection[0].Stats;
+        return details.StatListsCollection.Length == 0 ? [] : details.StatListsCollection[0].Stats;
     }
 
     private string GetTitlesFilePath(string env) => Path.Combine(DataSource.DataFolder, $"titles.{env}.json");
