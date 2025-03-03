@@ -1,8 +1,12 @@
 ﻿using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
 using Xbl.Client.Io;
+using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Queries;
 using Xbl.Client.Repositories;
+using Xbl.Data;
 
 namespace Xbl.Client;
 
@@ -14,11 +18,11 @@ public sealed class App : AsyncCommand<Settings>
     private readonly IXbox360ProfileImporter _importer;
     private readonly IKustoQueryExecutor _kustoQueryExecutor;
     private readonly IBuiltInQueries _builtInQueries;
-    private readonly IDboxRepository _dbox;
+    private readonly IServiceProvider _services;
 
     private Settings _settings;
 
-    public App(IConsole console, IExtendedHelp extendedHelp, IXblClient xblClient, IXbox360ProfileImporter importer, IKustoQueryExecutor kustoQueryExecutor, IBuiltInQueries builtInQueries, IDboxRepository dbox)
+    public App(IConsole console, IExtendedHelp extendedHelp, IXblClient xblClient, IXbox360ProfileImporter importer, IKustoQueryExecutor kustoQueryExecutor, IBuiltInQueries builtInQueries, IServiceProvider services)
     {
         _console = console;
         _extendedHelp = extendedHelp;
@@ -26,13 +30,48 @@ public sealed class App : AsyncCommand<Settings>
         _importer = importer;
         _kustoQueryExecutor = kustoQueryExecutor;
         _builtInQueries = builtInQueries;
-        _dbox = dbox;
+        _services = services;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         try
         {
+            //await _console.Progress(async ctx =>
+            //{
+            //    var task1 = ctx.AddTask("[white]Migrating the titles[/]", maxValue: 2);
+            //    var dbContext = _services.GetRequiredKeyedService<IDatabaseContext>(DataSource.Live);
+            //    await dbContext.CreateTables();
+            //    task1.Increment(1);
+
+            //    var xbl = _services.GetRequiredService<IXblRepository>();
+            //    var titleRepository = dbContext.GetRepository<Title>();
+            //    var titles = await xbl.LoadTitles(false);
+
+            //    await titleRepository.BulkInsert(titles);
+            //    task1.Increment(2);
+
+            //    var task2 = ctx.AddTask("[white]Migrating the achievements[/]", maxValue: titles.Length);
+            //    var task3 = ctx.AddTask("[white]Migrating the stats[/]", maxValue: titles.Length); 
+
+            //    var achievementRepository = dbContext.GetRepository<Achievement>();
+            //    var statsRepository = dbContext.GetRepository<Stat>();
+
+            //    foreach (var title in titles)
+            //    {
+            //        var a = await xbl.LoadAchievements(title);
+            //        var i = 1;
+            //        foreach (var achievement in a)
+            //        {
+            //            achievement.Id = i++;
+            //        }
+            //        await achievementRepository.BulkInsert(a);
+            //        task2.Increment(1);
+            //        await statsRepository.BulkInsert(await xbl.LoadStats(title));
+            //        task3.Increment(1);
+            //    }
+            //});
+
             //await _dbox.ConvertStoreProducts();
             //await _dbox.ConvertMarketplaceProducts();
         }

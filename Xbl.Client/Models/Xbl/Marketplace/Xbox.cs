@@ -1,5 +1,8 @@
-﻿namespace Xbl.Client.Models.Xbl.Marketplace;
+﻿using System.Diagnostics.CodeAnalysis;
 
+namespace Xbl.Client.Models.Xbl.Marketplace;
+
+[ExcludeFromCodeCoverage]
 public class Xbox
 {
     public string XboxGamingMetadata { get; set; }

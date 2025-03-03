@@ -1,10 +1,12 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using AutoMapper;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Marketplace;
 
 namespace Xbl.Client.Repositories;
 
+[ExcludeFromCodeCoverage]
 public class DboxRepository : RepositoryBase, IDboxRepository
 {
     private readonly IMapper _mapper;

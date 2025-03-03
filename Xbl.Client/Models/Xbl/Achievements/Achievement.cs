@@ -1,8 +1,10 @@
 ﻿using System.Text.Json.Serialization;
+using Xbl.Data;
 
 namespace Xbl.Client.Models.Xbl.Achievements;
 
-public class Achievement
+[Database(DataSource.Live, DataSource.Xbox360)]
+public class Achievement : IHaveId, IHavePartitionKey
 {
     [JsonPropertyName("id")]
     public int Id { get; set; }
@@ -41,4 +43,6 @@ public class Achievement
     public DateTime TimeUnlocked { get; set; }
     [JsonPropertyName("rarity")]
     public Rarity Rarity { get; set; }
+
+    public int PartitionKey => TitleId;
 }

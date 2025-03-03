@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Spectre.Console;
@@ -8,6 +9,7 @@ using Xbl.Client.Models.Kql;
 
 namespace Xbl.Client.Queries;
 
+[ExcludeFromCodeCoverage]
 public class ExtendedHelp : IExtendedHelp
 {
     private readonly IConsole _console;

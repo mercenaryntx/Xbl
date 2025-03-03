@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using KustoLoco.Core;
 using KustoLoco.Core.Settings;
 using KustoLoco.Rendering;
@@ -8,6 +9,7 @@ using Xbl.Client.Models;
 
 namespace Xbl.Client.Io;
 
+[ExcludeFromCodeCoverage]
 public class JsonOutput : IOutput
 {
     public void Render(ProfilesSummary summary)

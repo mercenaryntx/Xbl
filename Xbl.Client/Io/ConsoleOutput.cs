@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using KustoLoco.Core;
 using KustoLoco.Rendering;
 using Spectre.Console;
@@ -8,6 +9,7 @@ using Xbl.Client.Models;
 
 namespace Xbl.Client.Io;
 
+[ExcludeFromCodeCoverage]
 public class ConsoleOutput : IConsole
 {
     public void Render(ProfilesSummary data)

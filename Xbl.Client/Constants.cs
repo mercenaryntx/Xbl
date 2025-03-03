@@ -7,6 +7,7 @@ public static class DataSource
     public const string Live = "live";
     public const string Xbox360 = "x360";
     public const string Dbox = "dbox";
+    public const string Xbl = "xbl";
 }
 
 public static class DataTable

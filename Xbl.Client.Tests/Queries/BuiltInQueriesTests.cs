@@ -79,7 +79,7 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.RarestAchievements();
-        var array = result?.ToArray();
+        var array = result.ToArray();
 
         // Assert
         array.Should().NotBeNull();
@@ -99,7 +99,7 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.MostComplete();
-        var array = result?.ToArray();
+        var array = result.ToArray();
 
         // Assert
         array.Should().NotBeNull();
@@ -122,7 +122,7 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.SpentMostTimeWith();
-        var array = result?.ToArray();
+        var array = result.ToArray();
 
         // Assert
         array.Should().NotBeNull();
@@ -144,7 +144,7 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.WeightedRarity();
-        var array = result?.ToArray();
+        var array = result.ToArray();
 
         // Assert
         array.Should().NotBeNull();
@@ -167,7 +167,7 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.Categories();
-        var array = result?.ToArray();
+        var array = result.ToArray();
 
         // Assert
         array.Should().NotBeNull();

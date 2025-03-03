@@ -2,14 +2,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
 using Xbl.Client.Repositories;
+using Xbl.Data;
 
 namespace Xbl.Client;
 
+[ExcludeFromCodeCoverage]
 public class Program
 {
     private static async Task<int> Main(string[] args)
@@ -28,7 +31,7 @@ public class Program
         });
 
         args = args.Length == 0 
-            ? new[] {"-h"} 
+            ? ["-h"]
             : args.Select(a => a == "-u" ? "-u=all" : a).ToArray();
 
         return await app.RunAsync(args);
@@ -46,7 +49,8 @@ public class Program
             .AddSingleton<IBuiltInQueries, BuiltInQueries>()
             .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
             .AddSingleton<IExtendedHelp, ExtendedHelp>()
-            .AddSingleton(config.CreateMapper());
+            .AddSingleton(config.CreateMapper())
+            .AddData(DataSource.Live, DataSource.Xbox360, DataSource.Dbox, DataSource.Xbl);
 
         services.AddHttpClient<IXblClient, XblClient>((s, c) =>
                 {

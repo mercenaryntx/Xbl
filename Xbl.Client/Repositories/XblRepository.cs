@@ -1,13 +1,20 @@
 ﻿using AutoMapper;
 using Spectre.Console;
+using System.Diagnostics.CodeAnalysis;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Models.Xbl.Player;
 
 namespace Xbl.Client.Repositories;
 
+[ExcludeFromCodeCoverage]
 public class XblRepository : RepositoryBase, IXblRepository
 {
     private readonly IMapper _mapper;
+
+    public XblRepository(IMapper mapper)
+    {
+        _mapper = mapper;
+    }
 
     public Task SaveTitles(string source, AchievementTitles titles)
     {
@@ -37,11 +44,6 @@ public class XblRepository : RepositoryBase, IXblRepository
     public DateTime GetStatsSaveDate(Title title)
     {
         return new FileInfo(GetStatsFilePath(title)).LastAccessTimeUtc;
-    }
-
-    public XblRepository(IMapper mapper)
-    {
-        _mapper = mapper;
     }
 
     public async Task<Title[]> LoadTitles(bool union = true)
@@ -74,10 +76,6 @@ public class XblRepository : RepositoryBase, IXblRepository
         if (title.OriginalConsole == Device.Xbox360)
         {
             var details360 = await LoadJson<TitleDetails<Achievement>>(path);
-            foreach (var a in details360.Achievements)
-            {
-                a.TitleName = title.Name;
-            }
             return details360.Achievements;
         }
 

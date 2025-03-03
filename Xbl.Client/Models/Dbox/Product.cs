@@ -1,7 +1,14 @@
-﻿namespace Xbl.Client.Models.Dbox;
+﻿using System.Text.Json.Serialization;
+using Xbl.Data;
 
-public class Product
+namespace Xbl.Client.Models.Dbox;
+
+[Database(DataSource.Dbox)]
+public class Product : IHaveId
 {
+    [JsonIgnore]
+    public int Id { get; set; }
+
     public string TitleId { get; set; }
     public string Title { get; set; }
     public string DeveloperName { get; set; }

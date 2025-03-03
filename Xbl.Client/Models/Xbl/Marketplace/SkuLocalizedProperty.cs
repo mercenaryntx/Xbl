@@ -1,5 +1,8 @@
-﻿namespace Xbl.Client.Models.Xbl.Marketplace;
+﻿using System.Diagnostics.CodeAnalysis;
 
+namespace Xbl.Client.Models.Xbl.Marketplace;
+
+[ExcludeFromCodeCoverage]
 public class SkuLocalizedProperty
 {
     public object[] Contributors { get; set; }

@@ -11,4 +11,11 @@ public static class StringExtensions
         bytes.SwapEndian(4);
         return bytes.ToHex();
     }
+
+    public static int FromHexId(this string hexId)
+    {
+        var bytes = hexId.FromHex();
+        bytes.SwapEndian(4);
+        return BitConverter.ToInt32(bytes, 0);
+    }
 }

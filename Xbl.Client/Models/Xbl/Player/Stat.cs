@@ -1,10 +1,12 @@
 ﻿using System.Text.Json.Serialization;
+using Xbl.Client.Extensions;
+using Xbl.Data;
 
 namespace Xbl.Client.Models.Xbl.Player;
 
-public class Stat
+[Database(DataSource.Live)]
+public class Stat : IHaveId
 {
-
     [JsonPropertyName("xuid")]
     public string XUID { get; set; }
 
@@ -36,4 +38,7 @@ public class Stat
         var name = StatProperties?.DisplayName ?? Name;
         return $"{name}={Value}";
     }
+
+    [JsonIgnore]
+    public int Id => int.Parse(TitleId);
 }

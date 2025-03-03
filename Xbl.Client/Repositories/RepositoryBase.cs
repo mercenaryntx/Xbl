@@ -1,7 +1,9 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 namespace Xbl.Client.Repositories;
 
+[ExcludeFromCodeCoverage]
 public abstract class RepositoryBase : IRepository
 {
     public async Task<T> LoadJson<T>(string path)

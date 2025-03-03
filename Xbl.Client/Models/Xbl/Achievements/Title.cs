@@ -1,8 +1,11 @@
 ﻿using System.Text.Json.Serialization;
+using Xbl.Client.Extensions;
+using Xbl.Data;
 
 namespace Xbl.Client.Models.Xbl.Achievements;
 
-public class Title
+[Database(DataSource.Live, DataSource.Xbox360)]
+public class Title : IHaveId
 {
     [JsonPropertyName("titleId")]
     public string IntId { get; set; }
@@ -54,4 +57,7 @@ public class Title
     {
         return $"[{HexId}] {Name}";
     }
+
+    [JsonIgnore]
+    public int Id => int.Parse(IntId);
 }

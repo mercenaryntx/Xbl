@@ -1,7 +1,9 @@
 ﻿using Spectre.Console.Cli;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Xbl.Client.Infrastructure;
 
+[ExcludeFromCodeCoverage]
 public class XblTypeResolver : ITypeResolver
 {
     private readonly IServiceProvider _services;

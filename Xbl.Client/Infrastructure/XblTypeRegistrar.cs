@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Xbl.Client.Infrastructure;
 
+[ExcludeFromCodeCoverage]
 public class XblTypeRegistrar : ITypeRegistrar
 {
     private readonly IServiceCollection _services;

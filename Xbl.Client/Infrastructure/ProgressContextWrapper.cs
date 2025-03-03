@@ -1,7 +1,9 @@
-﻿using Spectre.Console;
+﻿using System.Diagnostics.CodeAnalysis;
+using Spectre.Console;
 
 namespace Xbl.Client.Infrastructure;
 
+[ExcludeFromCodeCoverage]
 public class ProgressContextWrapper : IProgressContext
 {
     private readonly ProgressContext _context;

@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Xbl.Data\Xbl.Data.csproj" />
     <ProjectReference Include="..\Xbl.Xbox360\Xbl.Xbox360.csproj" />
   </ItemGroup>
 

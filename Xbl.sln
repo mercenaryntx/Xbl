@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xbl.Xbox360", "Xbl.Xbox360\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xbl.Client.Tests", "Xbl.Client.Tests\Xbl.Client.Tests.csproj", "{F3541738-89B2-4C0E-8949-B284A72FF585}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xbl.Data", "Xbl.Data\Xbl.Data.csproj", "{01BF94A8-AF08-374E-9F54-70EE93E36584}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{F3541738-89B2-4C0E-8949-B284A72FF585}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3541738-89B2-4C0E-8949-B284A72FF585}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3541738-89B2-4C0E-8949-B284A72FF585}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01BF94A8-AF08-374E-9F54-70EE93E36584}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01BF94A8-AF08-374E-9F54-70EE93E36584}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01BF94A8-AF08-374E-9F54-70EE93E36584}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01BF94A8-AF08-374E-9F54-70EE93E36584}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
