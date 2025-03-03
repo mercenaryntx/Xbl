@@ -5,13 +5,46 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models;
-using Xbl.Client.Models.Xbl.Achievements;
 
 namespace Xbl.Client.Io;
 
 public class ConsoleOutput : IConsole
 {
-    public void RarestAchievements(IEnumerable<RarestAchievementItem> data)
+    public void Render(ProfilesSummary data)
+    {
+        var table = new Table();
+        table.AddColumn("[bold]Profile[/]");
+        table.AddColumn("[bold]Games[/]", c =>
+        {
+            c.Alignment = Justify.Right;
+            c.Footer($"{data.Profiles.Sum(p => p.Games)}|{data.UniqueTitlesCount}");
+
+        });
+        table.AddColumn("[bold]Achievements[/]", c => c.Alignment = Justify.Right);
+        table.AddColumn("[bold]Gamerscore[/]", c => c.Alignment = Justify.Right);
+        table.AddColumn("[bold]Hours played[/]", c => c.Alignment = Justify.Right);
+
+        RenderProfile(table, data.Profiles[0], "Xbox Live", "green3_1");
+        if (data.Profiles.Length > 1)
+        {
+            RenderProfile(table, data.Profiles[1], "Xbox 360", "cyan1");
+            table.ShowFooters = true;
+        }
+        AnsiConsole.Write(table);
+    }
+
+    private static void RenderProfile(Table table, ProfileSummary summary, string prefix, string color)
+    {
+        var profile = $"[{color}]{prefix}[/]";
+        var c1 = $"[{color}]{summary.Games}[/]";
+        var count = $"[{color}]{summary.Achievements}[/]";
+        var sum = $"[{color}]{summary.Gamerscore}[/]";
+        var hours = $"[{color}]{summary.MinutesPlayed.TotalHours:0.0}[/]";
+
+        table.AddRow(profile, c1, count, sum, hours);
+    }
+
+    public void Render(IEnumerable<RarestAchievementItem> data)
     {
         var table = new Table();
         table.AddColumn("[bold]No.[/]");
@@ -32,7 +65,7 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(table);
     }
 
-    public void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity)
+    public void Render(IEnumerable<WeightedAchievementItem> weightedRarity)
     {
         var table = new Table();
         table.AddColumn("[bold]No.[/]");
@@ -55,7 +88,7 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(table);
     }
 
-    public void MostComplete(IEnumerable<Title> data)
+    public void Render(IEnumerable<CompletenessItem> data)
     {
         var table = new Table();
         table.AddColumn("[bold]No.[/]");
@@ -69,14 +102,14 @@ public class ConsoleOutput : IConsole
             table.AddRow(
                 $"[silver]{++i:D3}[/]",
                 $"[cyan1]{title.Name}[/]",
-                $"[silver]{title.Achievement?.CurrentGamerscore ?? 0}/{title.Achievement?.TotalGamerscore ?? 0}[/]",
-                $"[#16c60c]{title.Achievement?.ProgressPercentage ?? 0:F}%[/]"
+                $"[silver]{title.CurrentGamerscore}/{title.TotalGamerscore}[/]",
+                $"[#16c60c]{title.ProgressPercentage:F}%[/]"
             );
         }
         AnsiConsole.Write(table);
     }
 
-    public void SpentMostTimeWith(IEnumerable<MinutesPlayed> data)
+    public void Render(IEnumerable<MinutesPlayed> data)
     {
         var chart = new BreakdownChart().Width(120);
         var colors = GetColorScheme();
@@ -90,7 +123,7 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(chart);
     }
 
-    public void Categories(IEnumerable<CategorySlice> slices)
+    public void Render(IEnumerable<CategorySlice> slices)
     {
         var chart = new BreakdownChart().Width(120);
         var colors = GetColorScheme();
@@ -172,13 +205,7 @@ public class ConsoleOutput : IConsole
         return AnsiConsole
             .Progress()
             .AutoClear(false)
-            .Columns(new ProgressColumn[]
-            {
-                new SpinnerColumn(Spinner.Known.Dots2),
-                new TaskDescriptionColumn { Alignment = Justify.Left },
-                new ProgressBarColumn(),
-                new PercentageColumn()
-            })
+            .Columns(new SpinnerColumn(Spinner.Known.Dots2), new TaskDescriptionColumn { Alignment = Justify.Left }, new ProgressBarColumn(), new PercentageColumn())
             .StartAsync(ctx => action(new ProgressContextWrapper(ctx)));
     }
 }

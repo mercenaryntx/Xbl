@@ -13,7 +13,6 @@ public class KustoQueryExecutor : IKustoQueryExecutor
     private readonly IXblRepository _xbl;
     private readonly IConsole _console;
     private readonly IMapper _mapper;
-    private readonly IOutput _output;
 
     public KustoQueryExecutor(Settings settings, IXblRepository xbl, IConsole console, IMapper mapper)
     {
@@ -21,20 +20,15 @@ public class KustoQueryExecutor : IKustoQueryExecutor
         _xbl = xbl;
         _console = console;
         _mapper = mapper;
-        _output = settings.Output?.ToLower() switch
-        {
-            "json" => new JsonOutput(),
-            _ => _console
-        };
     }
 
-    public async Task<int> RunKustoQuery()
+    public async Task<KustoQueryResult> RunKustoQuery()
     {
         var context = new KustoQueryContext();
         var titles = await _xbl.LoadTitles();
 
         var sources = _settings.KustoQuerySource?.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        if (sources == null || sources.Length == 0) sources = new[] {DataTable.Titles, DataTable.Achievements, DataTable.Stats};
+        if (sources == null || sources.Length == 0) sources = [DataTable.Titles, DataTable.Achievements, DataTable.Stats];
         foreach (var source in sources)
         {
             switch (source)
@@ -65,17 +59,13 @@ public class KustoQueryExecutor : IKustoQueryExecutor
         var kql = _settings.KustoQuery;
         if (kql.EndsWith(".kql", StringComparison.InvariantCultureIgnoreCase))
         {
-            if (!File.Exists(kql)) return _console.ShowError("KQL file cannot be found");
+            if (!File.Exists(kql)) 
+            {
+                _console.ShowError("KQL file cannot be found");
+                return null;
+            }
             kql = await File.ReadAllTextAsync(kql);
         }
-        var result = await context.RunQuery(kql);
-        if (!string.IsNullOrEmpty(result.Error))
-        {
-            _console.MarkupLineInterpolated($"[red]Error:[/] [silver]{result.Error}[/]");
-            return 1;
-        }
-
-        _output.KustoQueryResult(result);
-        return 0;
+        return await context.RunQuery(kql);
     }
 }

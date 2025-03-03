@@ -42,6 +42,11 @@ public sealed class App : AsyncCommand<Settings>
         }
 
         _settings = settings;
+        IOutput output = settings.Output?.ToLower() switch
+        {
+            "json" => new JsonOutput(),
+            _ => _console
+        };
 
         if (settings.ExtendedHelp)
         {
@@ -56,7 +61,14 @@ public sealed class App : AsyncCommand<Settings>
 
         if (!string.IsNullOrEmpty(settings.KustoQuery))
         {
-            return await _kustoQueryExecutor.RunKustoQuery();
+            var result = await _kustoQueryExecutor.RunKustoQuery();
+            if (!string.IsNullOrEmpty(result.Error))
+            {
+                return _console.ShowError(result.Error);
+            }
+
+            output.KustoQueryResult(result);
+            return 0;
         }
 
         switch (settings.Query)
@@ -64,22 +76,22 @@ public sealed class App : AsyncCommand<Settings>
             case null:
                 break;
             case "summary":
-                await _builtInQueries.Count();
+                output.Render(await _builtInQueries.Count());
                 break;
             case "rarity":
-                await _builtInQueries.RarestAchievements();
+                output.Render(await _builtInQueries.RarestAchievements());
                 break;
             case "completeness":
-                await _builtInQueries.MostComplete();
+                output.Render(await _builtInQueries.MostComplete());
                 break;
             case "time":
-                await _builtInQueries.SpentMostTimeWith();
+                output.Render(await _builtInQueries.SpentMostTimeWith());
                 break;
             case "weighted-rarity":
-                await _builtInQueries.WeightedRarity();
+                output.Render(await _builtInQueries.WeightedRarity());
                 break;
             case "categories":
-                await _builtInQueries.Categories();
+                output.Render(await _builtInQueries.Categories());
                 break;
             default:
                 return _console.ShowError("Unknown query alias");

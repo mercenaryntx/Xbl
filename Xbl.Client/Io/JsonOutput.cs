@@ -5,33 +5,37 @@ using KustoLoco.Rendering;
 using NotNullStrings;
 using Spectre.Console;
 using Xbl.Client.Models;
-using Xbl.Client.Models.Xbl.Achievements;
 
 namespace Xbl.Client.Io;
 
 public class JsonOutput : IOutput
 {
-    public void RarestAchievements(IEnumerable<RarestAchievementItem> rarest)
+    public void Render(ProfilesSummary summary)
+    {
+        Write(summary.Profiles, nameof(summary));
+    }
+
+    public void Render(IEnumerable<RarestAchievementItem> rarest)
     {
         Write(rarest, "rarity");
     }
 
-    public void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity)
+    public void Render(IEnumerable<WeightedAchievementItem> weightedRarity)
     {
         Write(weightedRarity, "weighted-rarity");
     }
 
-    public void MostComplete(IEnumerable<Title> mostComplete)
+    public void Render(IEnumerable<CompletenessItem> data)
     {
-        Write(mostComplete.Select(m => new { m.Name, m.Achievement?.CurrentGamerscore, m.Achievement?.TotalGamerscore, m.Achievement?.ProgressPercentage }), "completeness");
+        Write(data, "completeness");
     }
 
-    public void SpentMostTimeWith(IEnumerable<MinutesPlayed> minutesPlayed)
+    public void Render(IEnumerable<MinutesPlayed> minutesPlayed)
     {
         Write(minutesPlayed, "time");
     }
 
-    public void Categories(IEnumerable<CategorySlice> slices)
+    public void Render(IEnumerable<CategorySlice> slices)
     {
         Write(slices, "categories");
     }

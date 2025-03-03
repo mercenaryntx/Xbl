@@ -25,6 +25,7 @@
 	<ItemGroup>
 		<Folder Include="Infrastructure\" />
 		<Folder Include="Io\" />
+		<Folder Include="Queries\" />
 	</ItemGroup>
 
 </Project>

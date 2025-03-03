@@ -18,7 +18,6 @@ public class DboxClient : IDboxClient
 
     public async Task<int> Update()
     {
-        string MarketplaceFilename(int i) => $"_marketplace.{i}.json";
         await Update<MarketplaceProductCollection>("marketplace", _ => MarketplaceFilename(1), "&product_type=1");
         await Update<MarketplaceProductCollection>("marketplace", _ => MarketplaceFilename(14), "&product_type=14");
         await Update<StoreProductCollection>("store", i => $"_store.{i:D3}.json");
@@ -44,4 +43,6 @@ public class DboxClient : IDboxClient
             i++;
         }
     }
+
+    private static string MarketplaceFilename(int pt) => $"_marketplace.{pt}.json";
 }

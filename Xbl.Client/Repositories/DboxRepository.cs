@@ -2,7 +2,6 @@
 using AutoMapper;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Marketplace;
-using Product = Xbl.Client.Models.Dbox.Product;
 
 namespace Xbl.Client.Repositories;
 

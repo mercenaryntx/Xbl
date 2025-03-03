@@ -1,8 +1,6 @@
-using System.Text.Json;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Moq;
-using Moq.Protected;
 using Spectre.Console;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
@@ -11,6 +9,7 @@ using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Repositories;
+using Xbl.Client.Tests.Extensions;
 using Xunit;
 
 namespace Xbl.Client.Tests.Io;
@@ -20,7 +19,6 @@ public class XblClientTests
     private Mock<IXblRepository> _xblRepositoryMock;
     private Mock<IDboxRepository> _dboxRepositoryMock;
     private Mock<IConsole> _consoleMock;
-    private Mock<HttpMessageHandler> _httpMessageHandlerMock;
     private Mock<IProgressContext> _progressContextMock;
     private HttpClient _httpClient;
     private XblClient _xblClient;
@@ -355,32 +353,12 @@ public class XblClientTests
         _titlesFile.Titles.Should().AllSatisfy(t => t.OriginalConsole.Should().Be(t.CompatibleDevices.First()));
     }
 
-    //[Fact]
-    //public async Task UpdateStats_ShouldSaveStats()
-    //{
-    //    // Arrange
-    //    var titles = new List<Title>
-    //    {
-    //        new Title { IntId = "123", CompatibleDevices = new[] { "Device1" }, TitleHistory = new TitleHistory { LastTimePlayed = DateTime.Now } }
-    //    };
-    //    var responseContent = "{\"StatListsCollection\":[{\"Stats\":[{\"TitleId\":\"123\"}]}]}";
-    //    _httpMessageHandlerMock.Protected()
-    //        .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-    //        .ReturnsAsync(new HttpResponseMessage { Content = new StringContent(responseContent) });
-
-    //    // Act
-    //    await _xblClient.UpdateStats(new ProgressContext(), titles);
-
-    //    // Assert
-    //    _xblRepositoryMock.Verify(x => x.SaveJson(It.IsAny<string>(), It.IsAny<object>()), Times.Once);
-    //}
-
     private void Setup(string update = "all")
     {
         SetupXblRepositoryMock();
         SetupDboxRepositoryMock();
         SetupConsoleMock();
-        SetupHttpMessageHandlerMock();
+        SetupHttpClientMock();
         SetupProgressContextMock();
 
         _settings = new Settings { Update = update };
@@ -495,8 +473,8 @@ public class XblClientTests
         _xblRepositoryMock.Setup(x => x.SaveAchievements(It.IsAny<Title>(), It.IsAny<string>())).Callback((Title title, string data) => _achievementFiles[title.IntId.ToHexId()] = data);
         _xblRepositoryMock.Setup(x => x.SaveAchievements(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TitleDetails<Achievement>>())).Callback((string _, string hexId, TitleDetails<Achievement> achievements) => _achievementFiles[hexId] = string.Join(',', achievements.Achievements.Select(a => a.TitleName)));
         _xblRepositoryMock.Setup(x => x.SaveStats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TitleStats>())).Callback((string _, string hexId, TitleStats stats) => _statsFiles[hexId] = stats);
-        _xblRepositoryMock.Setup(x => x.LoadJson<Title[]>(It.IsAny<string>())).ReturnsAsync((string _) => _titlesFile.Titles);
-        _xblRepositoryMock.Setup(x => x.LoadJson<TitleDetails<LiveAchievement>>(It.IsAny<string>())).ReturnsAsync((string path) => _achievementsTitleResponse[path]);
+        _xblRepositoryMock.LoadJson(_ => _titlesFile.Titles);
+        _xblRepositoryMock.LoadJson(path => _achievementsTitleResponse[path]);
         _xblRepositoryMock.Setup(x => x.GetAchievementSaveDate(It.IsAny<Title>())).Returns(datetime);
         _xblRepositoryMock.Setup(x => x.GetStatsSaveDate(It.IsAny<Title>())).Returns(datetime);
     }
@@ -515,28 +493,15 @@ public class XblClientTests
         _consoleMock.Setup(c => c.ShowError(It.IsAny<string>())).Returns(1);
     }
 
-    private void SetupHttpMessageHandlerMock()
+    private void SetupHttpClientMock()
     {
-        _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
-        _httpMessageHandlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync((HttpRequestMessage req, CancellationToken _) =>
-            {
-                return req.RequestUri?.ToString() switch
-                {
-                    "https://example.com/achievements/" => new HttpResponseMessage { Content = new StringContent(JsonSerializer.Serialize(_achievementsResponse)) },
-                    "https://example.com/achievements/title/1915865634" => new HttpResponseMessage { Content = new StringContent(JsonSerializer.Serialize(_achievementsTitleResponse["1915865634"])) },
-                    "https://example.com/achievements/x360/123/title/1915865634" => new HttpResponseMessage { Content = new StringContent(JsonSerializer.Serialize(_achievementsX360TitleResponse["1915865634"])) },
-                    "https://example.com/achievements/title/1745345352" => new HttpResponseMessage { Content = new StringContent(JsonSerializer.Serialize(_achievementsTitleResponse["1745345352"])) },
-                    "https://example.com/player/stats" => new HttpResponseMessage { Content = new StringContent(JsonSerializer.Serialize(_playerStatsResponse)) },
-                    _ => new HttpResponseMessage { Content = new StringContent("wrong") }
-                };
-            });
-
-        _httpClient = new HttpClient(_httpMessageHandlerMock.Object)
-        {
-            BaseAddress = new Uri("https://example.com")
-        };
+        _httpClient = new HttpClientMockBuilder("https://example.com")
+            .AddResponse("/achievements/", _ => _achievementsResponse.ToHttpResponseMessage())
+            .AddResponse("/achievements/title/1915865634", _ => _achievementsTitleResponse["1915865634"].ToHttpResponseMessage())
+            .AddResponse("/achievements/x360/123/title/1915865634", _ => _achievementsX360TitleResponse["1915865634"].ToHttpResponseMessage())
+            .AddResponse("/achievements/title/1745345352", _ => _achievementsTitleResponse["1745345352"].ToHttpResponseMessage())
+            .AddResponse("/player/stats", _ => _playerStatsResponse.ToHttpResponseMessage())
+            .Build();
     }
 
     private void SetupProgressContextMock()

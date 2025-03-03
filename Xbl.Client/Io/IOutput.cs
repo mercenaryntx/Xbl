@@ -1,15 +1,16 @@
 ﻿using KustoLoco.Core;
 using Xbl.Client.Models;
-using Xbl.Client.Models.Xbl.Achievements;
 
 namespace Xbl.Client.Io;
 
 public interface IOutput
 {
-    void RarestAchievements(IEnumerable<RarestAchievementItem> data);
-    void WeightedRarity(IEnumerable<WeightedAchievementItem> weightedRarity);
-    void MostComplete(IEnumerable<Title> data);
-    void SpentMostTimeWith(IEnumerable<MinutesPlayed> data);
+    void Render(ProfilesSummary summary);
+    void Render(IEnumerable<RarestAchievementItem> data);
+    void Render(IEnumerable<WeightedAchievementItem> weightedRarity);
+    void Render(IEnumerable<CompletenessItem> data);
+    void Render(IEnumerable<MinutesPlayed> data);
+    void Render(IEnumerable<CategorySlice> slices);
+
     void KustoQueryResult(KustoQueryResult result);
-    void Categories(IEnumerable<CategorySlice> slices);
 }

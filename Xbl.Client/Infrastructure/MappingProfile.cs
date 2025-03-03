@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using AutoMapper;
+﻿using AutoMapper;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Kql;
 using Xbl.Client.Models.Xbl.Achievements;
@@ -72,19 +71,12 @@ public class MappingProfile : Profile
     private static string MapPlatform(IEnumerable<string> platforms)
     {
         var x = platforms.First();
-        switch (x)
+        return x switch
         {
-            case "WindowsOneCore":
-            case "Scarlett":
-                return Device.XboxSeries;
-            case "Durango":
-                return Device.XboxOne;
-            case Device.XboxOne:
-                return x;
-            default:
-                Debugger.Break();
-                return x;
-        }
+            "WindowsOneCore" or "Scarlett" => Device.XboxSeries,
+            "Durango" => Device.XboxOne,
+            _ => x
+        };
     }
 
     private static int MapGamerscore(IEnumerable<Reward> rewards)

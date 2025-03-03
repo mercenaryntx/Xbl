@@ -1,6 +1,8 @@
-﻿namespace Xbl.Client.Queries;
+﻿using KustoLoco.Core;
+
+namespace Xbl.Client.Queries;
 
 public interface IKustoQueryExecutor
 {
-    Task<int> RunKustoQuery();
+    Task<KustoQueryResult> RunKustoQuery();
 }

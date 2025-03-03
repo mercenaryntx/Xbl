@@ -28,8 +28,12 @@ public class MappingProfileTests
         config.AssertConfigurationIsValid();
     }
 
-    [Fact]
-    public void Map_LiveAchievement_To_Achievement()
+    [Theory]
+    [InlineData("WindowsOneCore", Device.XboxSeries)]
+    [InlineData("Scarlett", Device.XboxSeries)]
+    [InlineData("Durango", Device.XboxOne)]
+    [InlineData(Device.XboxOne, Device.XboxOne)]
+    public void Map_LiveAchievement_To_Achievement(string platform, string device)
     {
         var timeUnlocked = DateTime.Now;
         var liveAchievement = new LiveAchievement
@@ -38,7 +42,7 @@ public class MappingProfileTests
             TitleAssociations = new[] { new TitleAssociation { Id = 1915865634, Name = "Test Title" } },
             Progression = new Progression { TimeUnlocked = timeUnlocked },
             ProgressState = "Achieved",
-            Platforms = new[] { "Durango" },
+            Platforms = new[] { platform },
             Rewards = new[] { new Reward { Type = "Gamerscore", Value = "100", ValueType = "Int" } }
         };
 
@@ -51,13 +55,13 @@ public class MappingProfileTests
             achievement.TimeUnlocked.Should().Be(timeUnlocked);
             achievement.Unlocked.Should().BeTrue();
             achievement.UnlockedOnline.Should().BeTrue();
-            achievement.Platform.Should().Be(Device.XboxOne);
+            achievement.Platform.Should().Be(device);
             achievement.Gamerscore.Should().Be(100);
         }
     }
 
     [Fact]
-    public void Map_StoreProductGroup_To_Product()
+    public void Map_StoreProductGroup_To_Product_PC()
     {
         var storeProducts = new[]
         {
@@ -68,7 +72,9 @@ public class MappingProfileTests
                 DeveloperName = "Test Developer",
                 PublisherName = "Test Publisher",
                 ProductGroupId = "Group123",
-                Category = "Test Category"
+                Category = "Test Category",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5)
             }
         }.GroupBy(p => p.TitleId);
 
@@ -82,7 +88,158 @@ public class MappingProfileTests
             product.PublisherName.Should().Be("Test Publisher");
             product.ProductGroupId.Should().Be("Group123");
             product.Category.Should().Be("Test Category");
+            product.Versions.Should().BeEquivalentTo([ new KeyValuePair<string,ProductVersion>(Device.PC, new ProductVersion
+            {
+                Title = "Test Title", 
+                ProductId = "abc", 
+                RevisionId = new DateTime(2024, 5, 5), 
+                XboxConsoleGenCompatible = [], 
+                XboxConsoleGenOptimized = []
+            })]);
         }
+    }
+
+    [Fact]
+    public void Map_StoreProductGroup_To_Product_Xbox360()
+    {
+        var storeProducts = new[]
+        {
+            new StoreProduct
+            {
+                Title = "Test Title",
+                TitleId = "123",
+                DeveloperName = "Test Developer",
+                PublisherName = "Test Publisher",
+                ProductGroupId = "Group123",
+                Category = "Test Category",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen8"],
+                PackageIdentityName = "Xbox360BackwardCompatibil.PrimaryBeautifulKatamari_ksqcvrsvwz2jp"
+            }
+        }.GroupBy(p => p.TitleId);
+
+        var product = _mapper.Map<Product>(storeProducts.First());
+
+        using (new AssertionScope())
+        {
+            product.Title.Should().Be("Test Title");
+            product.TitleId.Should().Be("123");
+            product.DeveloperName.Should().Be("Test Developer");
+            product.PublisherName.Should().Be("Test Publisher");
+            product.ProductGroupId.Should().Be("Group123");
+            product.Category.Should().Be("Test Category");
+            product.Versions.Should().BeEquivalentTo([ new KeyValuePair<string,ProductVersion>(Device.Xbox360, new ProductVersion
+            {
+                Title = "Test Title",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen8"],
+                XboxConsoleGenOptimized = [],
+                PackageIdentityName = "Xbox360BackwardCompatibil.PrimaryBeautifulKatamari_ksqcvrsvwz2jp"
+            })]);
+        }
+    }
+
+    [Fact]
+    public void Map_StoreProductGroup_To_Product_XboxOne()
+    {
+        var storeProducts = new[]
+        {
+            new StoreProduct
+            {
+                Title = "Test Title",
+                TitleId = "123",
+                DeveloperName = "Test Developer",
+                PublisherName = "Test Publisher",
+                ProductGroupId = "Group123",
+                Category = "Test Category",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen8"],
+                PackageIdentityName = ""
+            }
+        }.GroupBy(p => p.TitleId);
+
+        var product = _mapper.Map<Product>(storeProducts.First());
+
+        using (new AssertionScope())
+        {
+            product.Title.Should().Be("Test Title");
+            product.TitleId.Should().Be("123");
+            product.DeveloperName.Should().Be("Test Developer");
+            product.PublisherName.Should().Be("Test Publisher");
+            product.ProductGroupId.Should().Be("Group123");
+            product.Category.Should().Be("Test Category");
+            product.Versions.Should().BeEquivalentTo([ new KeyValuePair<string,ProductVersion>(Device.XboxOne, new ProductVersion
+            {
+                Title = "Test Title",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen8"],
+                XboxConsoleGenOptimized = [],
+                PackageIdentityName = ""
+            })]);
+        }
+    }
+
+    [Fact]
+    public void Map_StoreProductGroup_To_Product_XboxSeries()
+    {
+        var storeProducts = new[]
+        {
+            new StoreProduct
+            {
+                Title = "Test Title",
+                TitleId = "123",
+                DeveloperName = "Test Developer",
+                PublisherName = "Test Publisher",
+                ProductGroupId = "Group123",
+                Category = "Test Category",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen9"],
+                PackageIdentityName = ""
+            }
+        }.GroupBy(p => p.TitleId);
+
+        var product = _mapper.Map<Product>(storeProducts.First());
+
+        using (new AssertionScope())
+        {
+            product.Title.Should().Be("Test Title");
+            product.TitleId.Should().Be("123");
+            product.DeveloperName.Should().Be("Test Developer");
+            product.PublisherName.Should().Be("Test Publisher");
+            product.ProductGroupId.Should().Be("Group123");
+            product.Category.Should().Be("Test Category");
+            product.Versions.Should().BeEquivalentTo([ new KeyValuePair<string,ProductVersion>(Device.XboxSeries, new ProductVersion
+            {
+                Title = "Test Title",
+                ProductId = "abc",
+                RevisionId = new DateTime(2024, 5, 5),
+                XboxConsoleGenCompatible = ["ConsoleGen9"],
+                XboxConsoleGenOptimized = [],
+                PackageIdentityName = ""
+            })]);
+        }
+    }
+
+    [Fact]
+    public void Map_StoreProductGroup_To_Product_Unknown()
+    {
+        var storeProducts = new[]
+        {
+            new StoreProduct
+            {
+                XboxConsoleGenCompatible = ["LoremIpsum"],
+                PackageIdentityName = ""
+            }
+        }.GroupBy(p => p.TitleId);
+
+        Action act = () => _mapper.Map<Product>(storeProducts.First());
+
+        act.Should().Throw<AutoMapperMappingException>().WithInnerException<Exception>().WithMessage("Unknown generation: LoremIpsum");
     }
 
     [Fact]
