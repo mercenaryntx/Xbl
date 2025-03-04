@@ -1,16 +1,14 @@
 ﻿using System.Text.Json.Serialization;
-using Xbl.Client.Extensions;
-using Xbl.Data;
+using Xbl.Data.Entities;
 
 namespace Xbl.Client.Models.Xbl.Achievements;
 
-[Database(DataSource.Live, DataSource.Xbox360)]
-public class Title : IHaveId
+public class Title : IHaveIntId
 {
+    #region Original Xbl Properties
+
     [JsonPropertyName("titleId")]
     public string IntId { get; set; }
-    [JsonPropertyName("hexId")]
-    public string HexId { get; set; }
     [JsonPropertyName("pfn")]
     public string Pfn { get; set; }
     [JsonPropertyName("bingId")]
@@ -42,6 +40,12 @@ public class Title : IHaveId
     [JsonPropertyName("isStreamable")]
     public bool IsStreamable { get; set; }
 
+    #endregion
+
+    #region Enriched Properties
+
+    [JsonPropertyName("hexId")]
+    public string HexId { get; set; }
     [JsonPropertyName("source")]
     public string Source { get; set; }
     [JsonPropertyName("originalConsole")]
@@ -53,11 +57,13 @@ public class Title : IHaveId
     [JsonPropertyName("category")]
     public string Category { get; set; }
 
+    #endregion
+
+    [JsonIgnore]
+    public int Id => int.Parse(IntId);
+
     public override string ToString()
     {
         return $"[{HexId}] {Name}";
     }
-
-    [JsonIgnore]
-    public int Id => int.Parse(IntId);
 }

@@ -1,5 +1,7 @@
+using AutoMapper;
 using FluentAssertions;
 using FluentAssertions.Execution;
+using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Moq;
 using Spectre.Console;
 using Xbl.Client.Extensions;
@@ -8,16 +10,16 @@ using Xbl.Client.Io;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Models.Xbl.Player;
-using Xbl.Client.Repositories;
 using Xbl.Client.Tests.Extensions;
+using Xbl.Data;
 using Xunit;
 
 namespace Xbl.Client.Tests.Io;
 
 public class XblClientTests
 {
-    private Mock<IXblRepository> _xblRepositoryMock;
-    private Mock<IDboxRepository> _dboxRepositoryMock;
+    private DatabaseContext _db;
+
     private Mock<IConsole> _consoleMock;
     private Mock<IProgressContext> _progressContextMock;
     private HttpClient _httpClient;
@@ -29,21 +31,17 @@ public class XblClientTests
     private Dictionary<string, TitleDetails<Achievement>> _achievementsX360TitleResponse;
     private TitleStats _playerStatsResponse;
 
-    private AchievementTitles _titlesFile;
-    private readonly Dictionary<string, string> _achievementFiles = new();
-    private readonly Dictionary<string, TitleStats> _statsFiles = new();
-
-    private Dictionary<string, Product> _storeProducts = new();
-    private Dictionary<string, Product> _marketplaceProducts = new();
+    private Product[] _storeProducts;
+    private Product[] _marketplaceProducts;
 
     [Fact]
-    public async Task Update_UpdateTitles_ShouldCreateCorrectXboxOneTitlesFile()
+    public async Task Update_UpdateTitles_ShouldInsertXboxOneTitles()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
         SetupTestTitles(xone);
         SetupTestStore(xone);
-        Setup();
+        await Setup();
 
         // Act
         var result = await _xblClient.Update();
@@ -52,9 +50,9 @@ public class XblClientTests
         using (new AssertionScope())
         {
             result.Should().Be(0);
-            AssertTitles();
+            var titles = await AssertTitles();
 
-            var t1 = _titlesFile.Titles.Single(t => t.IntId == xone.IntId);
+            var t1 = titles.Single(t => t.IntId == xone.IntId);
             t1.Should().NotBeNull();
             t1.Category.Should().Be("Shooter");
             t1.IsBackCompat.Should().BeFalse();
@@ -64,13 +62,20 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_UpdateTitles_ShouldCreateCorrectXbox360TitlesFile()
+    public async Task Update_UpdateTitles_ShouldUpdateXboxOneTitlesIfHttpResponseIsNewer()
     {
         // Arrange
-        var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
-        SetupTestTitles(x360);
-        SetupTestMarketplace(x360);
-        Setup();
+        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
+        xone.TitleHistory.LastTimePlayed = DateTime.Now.AddDays(1);
+        SetupTestTitles(xone);
+        SetupTestStore(xone);
+        await Setup();
+
+        var r = await _db.GetRepository<Title>();
+        await r.Insert(new Title
+        {
+            IntId = "1915865634"
+        });
 
         // Act
         var result = await _xblClient.Update();
@@ -79,9 +84,72 @@ public class XblClientTests
         using (new AssertionScope())
         {
             result.Should().Be(0);
-            AssertTitles();
+            var titles = await AssertTitles();
 
-            var t1 = _titlesFile.Titles.Single(t => t.IntId == x360.IntId);
+            var t1 = titles.Single(t => t.IntId == xone.IntId);
+            t1.Should().NotBeNull();
+            t1.Category.Should().Be("Shooter");
+            t1.IsBackCompat.Should().BeFalse();
+            t1.Products.Values.Should().BeEquivalentTo([new TitleProduct { ProductId = "12345678", TitleId = t1.HexId }
+            ]);
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateTitles_ShouldNotUpdateXboxOneTitlesIfHttpResponseIsOlder()
+    {
+        // Arrange
+        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
+        SetupTestTitles(xone);
+        SetupTestStore(xone);
+        await Setup();
+
+        var r = await _db.GetRepository<Title>();
+        await r.Insert(new Title
+        {
+            IntId = "1915865634"
+        });
+
+        // Act
+        var result = await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Should().Be(0);
+            var title = await r.Get(1915865634);
+            title.Should().NotBeEquivalentTo(_achievementsResponse.Titles[0],
+                o => o.Excluding(t => t.HexId)
+                    .Excluding(t => t.Source)
+                    .Excluding(t => t.OriginalConsole)
+                    .Excluding(t => t.Products)
+                    .Excluding(t => t.Category)
+                    .Excluding(t => t.IsBackCompat));
+            title.Source.Should().NotBe(DataSource.Live);
+            title.Category.Should().NotBe("Shooter");
+            title.Products.Should().BeNullOrEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateTitles_ShouldInsertXbox360Titles()
+    {
+        // Arrange
+        var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
+        SetupTestTitles(x360);
+        SetupTestMarketplace(x360);
+        await Setup();
+
+        // Act
+        var result = await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Should().Be(0);
+            var titles = await AssertTitles();
+
+            var t1 = titles.Single(t => t.IntId == x360.IntId);
             t1.Should().NotBeNull();
             t1.Category.Should().Be("Shooter");
             t1.IsBackCompat.Should().BeFalse();
@@ -91,7 +159,7 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_UpdateTitles_ShouldCreateCorrectBackCompatTitlesFile()
+    public async Task Update_UpdateTitles_ShouldInsertBackCompatTitles()
     {
         // Arrange
         var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
@@ -101,7 +169,7 @@ public class XblClientTests
         SetupTestTitles(x360);
         SetupTestStore(xone);
         SetupTestMarketplace(x360);
-        Setup();
+        await Setup();
 
         // Act
         var result = await _xblClient.Update();
@@ -110,9 +178,9 @@ public class XblClientTests
         using (new AssertionScope())
         {
             result.Should().Be(0);
-            AssertTitles();
+            var titles = await AssertTitles();
 
-            var t1 = _titlesFile.Titles.Single(t => t.IntId == x360.IntId);
+            var t1 = titles.Single(t => t.IntId == x360.IntId);
             t1.Should().NotBeNull();
             t1.Category.Should().Be("Shooter");
             t1.IsBackCompat.Should().BeTrue();
@@ -126,12 +194,12 @@ public class XblClientTests
 
 
     [Fact]
-    public async Task Update_UpdateAchievements_ShouldCreateXboxOneAchievementFile()
+    public async Task Update_UpdateAchievements_ShouldInsertXboxOneAchievement()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
         SetupTestTitles(xone);
-        Setup();
+        await Setup();
 
 
         // Act
@@ -140,18 +208,49 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _achievementFiles.Should().ContainKey("7231CA22");
+            var r = await _db.GetRepository<Achievement>();
+            var i = await r.Get(1, 1915865634);
+            i.Should().NotBeNull();
         }
     }
 
     [Fact]
-    public async Task Update_UpdateAchievements_ShouldNotCreateXboxOneAchievementFileIfLastTimePlayedIsOld()
+    public async Task Update_UpdateAchievements_ShouldNotUpdateXboxOneAchievementIfItsNewer()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
-        xone.TitleHistory.LastTimePlayed = new DateTime(2020, 4, 1);
         SetupTestTitles(xone);
-        Setup();
+        await Setup();
+
+        var r = await _db.GetRepository<Achievement>();
+        await r.Insert(new Achievement
+        {
+            Id =1,
+            TitleId = 1915865634,
+            Name = "I am the newest",
+            TimeUnlocked = DateTime.Now
+        });
+
+        // Act
+        await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            var i = await r.Get(1, 1915865634);
+            i.Should().NotBeNull();
+            i.Name.Should().Be("I am the newest");
+            i.TimeUnlocked.Should().BeAfter(new DateTime(2020, 4, 1));
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateAchievements_ShouldNotUpdateXboxOneAchievementIfUpdateIsStats()
+    {
+        // Arrange
+        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
+        SetupTestTitles(xone);
+        await Setup("stats");
 
 
         // Act
@@ -160,61 +259,20 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _achievementFiles.Should().BeEmpty();
+            var r = await _db.GetRepository<Achievement>();
+            var i = await r.Get(1, 1915865634);
+            i.Should().BeNull();
         }
     }
 
     [Fact]
-    public async Task Update_UpdateAchievements_ShouldNotCreateXboxOneAchievementFileIfUpdateIsStats()
-    {
-        // Arrange
-        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
-        xone.TitleHistory.LastTimePlayed = new DateTime(2020, 4, 1);
-        SetupTestTitles(xone);
-        Setup("stats");
-
-
-        // Act
-        await _xblClient.Update();
-
-        // Assert
-        using (new AssertionScope())
-        {
-            _achievementFiles.Should().BeEmpty();
-        }
-    }
-
-    [Fact]
-    public async Task Update_UpdateAchievements_ShouldCreateXbox360AchievementFile()
+    public async Task Update_UpdateAchievements_ShouldInsertXbox360Achievement()
     {
         // Arrange
         var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
         SetupTestTitles(x360);
         SetupTestMarketplace(x360);
-        Setup();
-
-
-        // Act
-        await _xblClient.Update();
-
-        // Assert
-        using (new AssertionScope())
-        {
-            _achievementFiles.Should().ContainKey("7231CA22");
-            _achievementFiles["7231CA22"].Should().Be(x360.Name);
-        }
-    }
-
-    [Fact]
-    public async Task Update_UpdateAchievements_ShouldNotCreateXbox360AchievementFileIfLastTimePlayedIsOld()
-    {
-        // Arrange
-        var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
-        x360.TitleHistory.LastTimePlayed = new DateTime(2020, 4, 1);
-        SetupTestTitles(x360);
-        SetupTestMarketplace(x360);
-        Setup();
-
+        await Setup();
 
         // Act
         await _xblClient.Update();
@@ -222,57 +280,51 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _achievementFiles.Should().BeEmpty();
+            var r = await _db.GetRepository<Achievement>();
+            var i = await r.Get(1, 1915865634);
+            i.Should().NotBeNull();
+            i.TitleName.Should().Be(x360.Name);
         }
     }
 
     [Fact]
-    public async Task Update_UpdateStats_ShouldCreateXboxOneStatsFile()
-    {
-        // Arrange
-        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
-        SetupTestTitles(xone);
-        Setup();
-
-
-        // Act
-        await _xblClient.Update();
-
-        // Assert
-        using (new AssertionScope())
-        {
-            _statsFiles.Should().ContainKey("7231CA22");
-        }
-    }
-
-    [Fact]
-    public async Task Update_UpdateStats_ShouldNotCreateXboxOneStatsFileIfLastTimePlayedIsOld()
-    {
-        // Arrange
-        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
-        xone.TitleHistory.LastTimePlayed = new DateTime(2020, 4, 1);
-        SetupTestTitles(xone);
-        Setup();
-
-
-        // Act
-        await _xblClient.Update();
-
-        // Assert
-        using (new AssertionScope())
-        {
-            _statsFiles.Should().BeEmpty();
-        }
-    }
-
-    [Fact]
-    public async Task Update_UpdateStats_ShouldNotCreateXbox360StatsFile()
+    public async Task Update_UpdateAchievements_ShouldNotUpdateXbox360AchievementIfItsNewer()
     {
         // Arrange
         var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
         SetupTestTitles(x360);
         SetupTestMarketplace(x360);
-        Setup();
+        await Setup();
+
+        var r = await _db.GetRepository<Achievement>();
+        await r.Insert(new Achievement
+        {
+            Id = 1,
+            TitleId = 1915865634,
+            Name = "I am the newest",
+            TimeUnlocked = DateTime.Now
+        });
+
+        // Act
+        await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            var i = await r.Get(1, 1915865634);
+            i.Should().NotBeNull();
+            i.Name.Should().Be("I am the newest");
+            i.TimeUnlocked.Should().BeAfter(new DateTime(2020, 4, 1));
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateStats_ShouldInsertXboxOneStats()
+    {
+        // Arrange
+        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
+        SetupTestTitles(xone);
+        await Setup();
 
 
         // Act
@@ -281,17 +333,66 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _statsFiles.Should().BeEmpty();
+            var r = await _db.GetRepository<Stat>();
+            var i = await r.Get(1915865634);
+            i.Should().NotBeNull();
         }
     }
 
     [Fact]
-    public async Task Update_UpdateStats_ShouldNotCreateMobileStatsFile()
+    public async Task Update_UpdateStats_ShouldNotCreateXboxOneStatsIfItsNewer()
+    {
+        // Arrange
+        var xone = CreateTestTitle(Device.XboxOne, "1915865634");
+        SetupTestTitles(xone);
+        await Setup();
+
+        var r = await _db.GetRepository<Title>();
+        await r.Insert(new Title
+        {
+            IntId = "1915865634"
+        });
+
+        // Act
+        await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            var r2 = await _db.GetRepository<Stat>();
+            var i = await r2.Get(1915865634);
+            i.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateStats_ShouldNotInsertXbox360Stats()
+    {
+        // Arrange
+        var x360 = CreateTestTitle(Device.Xbox360, "1915865634");
+        SetupTestTitles(x360);
+        SetupTestMarketplace(x360);
+        await Setup();
+
+        // Act
+        await _xblClient.Update();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            var r = await _db.GetRepository<Stat>();
+            var i = await r.Get(1,1915865634);
+            i.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task Update_UpdateStats_ShouldNotInsertMobileStats()
     {
         // Arrange
         var mob = CreateTestTitle(Device.Mobile, "1915865634");
         SetupTestTitles(mob);
-        Setup();
+        await Setup();
 
 
         // Act
@@ -300,19 +401,20 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _statsFiles.Should().BeEmpty();
+            var r = await _db.GetRepository<Stat>();
+            var i = await r.Get(1, 1915865634);
+            i.Should().BeNull();
         }
     }
 
     [Fact]
-    public async Task Update_UpdateStats_ShouldNotCreateXboxOneStatsFileIfUpdateUpdateIsAchievements()
+    public async Task Update_UpdateStats_ShouldNotInsertXboxOneStatsIfUpdateUpdateIsAchievements()
     {
         // Arrange
         var xone = CreateTestTitle(Device.XboxOne, "1915865634");
         xone.TitleHistory.LastTimePlayed = new DateTime(2020, 4, 1);
         SetupTestTitles(xone);
-        Setup("achievements");
-
+        await Setup("achievements");
 
         // Act
         await _xblClient.Update();
@@ -320,7 +422,9 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            _statsFiles.Should().BeEmpty();
+            var r = await _db.GetRepository<Stat>();
+            var i = await r.Get(1, 1915865634);
+            i.Should().BeNull();
         }
     }
 
@@ -328,7 +432,7 @@ public class XblClientTests
     public async Task Update_ShouldReturnErrorCodeOnHttpRequestException()
     {
         // Arrange
-        Setup();
+        await Setup();
         _consoleMock.Setup(c => c.Progress(It.IsAny<Func<IProgressContext, Task>>())).ThrowsAsync(new HttpRequestException());
 
         // Act
@@ -338,31 +442,37 @@ public class XblClientTests
         result.Should().NotBe(0);
     }
 
-    private void AssertTitles()
+    private async Task<Title[]> AssertTitles()
     {
-        _titlesFile.Xuid.Should().Be(_achievementsResponse.Xuid);
-        _titlesFile.Titles.Should().BeEquivalentTo(_achievementsResponse.Titles, 
+        var r = await _db.GetRepository<Title>();
+        var titles = (await r.GetAll()).ToArray();
+
+        titles.Should().BeEquivalentTo(_achievementsResponse.Titles, 
             o => o.Excluding(t => t.HexId)
                   .Excluding(t => t.Source)
                   .Excluding(t => t.OriginalConsole)
                   .Excluding(t => t.Products)
                   .Excluding(t => t.Category)
                   .Excluding(t => t.IsBackCompat));
-        _titlesFile.Titles.Should().OnlyContain(t => t.Source == "live");
-        _titlesFile.Titles.Should().AllSatisfy(t => t.HexId.Should().Be(t.IntId.ToHexId()));
-        _titlesFile.Titles.Should().AllSatisfy(t => t.OriginalConsole.Should().Be(t.CompatibleDevices.First()));
+        titles.Should().AllSatisfy(t => t.Source.Should().Be(DataSource.Live));
+        titles.Should().AllSatisfy(t => t.HexId.Should().Be(t.IntId.ToHexId()));
+        titles.Should().AllSatisfy(t => t.OriginalConsole.Should().Be(t.CompatibleDevices.First()));
+
+        return titles;
     }
 
-    private void Setup(string update = "all")
+    private async Task Setup(string update = "all")
     {
-        SetupXblRepositoryMock();
-        SetupDboxRepositoryMock();
+        await SetupDatabaseMock();
         SetupConsoleMock();
         SetupHttpClientMock();
         SetupProgressContextMock();
 
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
+        var mapper = config.CreateMapper();
+
         _settings = new Settings { Update = update };
-        _xblClient = new XblClient(_settings, _httpClient, _xblRepositoryMock.Object, _dboxRepositoryMock.Object, _consoleMock.Object);
+        _xblClient = new XblClient(_settings, _httpClient, _consoleMock.Object, mapper, _db, _db, _db);
     }
 
     private static Title CreateTestTitle(string device, string id)
@@ -431,7 +541,7 @@ public class XblClientTests
 
     private void SetupTestStore(params Title[] titles)
     {
-        _storeProducts = titles.ToDictionary(t => t.IntId.ToHexId(), t => new Product
+        _storeProducts = titles.Select( t => new Product
         {
             TitleId = t.IntId.ToHexId(),
             Title = t.Name,
@@ -444,12 +554,12 @@ public class XblClientTests
                     ProductId = "12345678"
                 }
             }
-        });
+        }).ToArray();
     }
 
     private void SetupTestMarketplace(params Title[] titles)
     {
-        _marketplaceProducts = titles.ToDictionary(t => t.IntId.ToHexId(), t => new Product
+        _marketplaceProducts = titles.Select(t => new Product
         {
             TitleId = t.IntId.ToHexId(), // "7231CA22"
             Title = t.Name,
@@ -462,28 +572,23 @@ public class XblClientTests
                     ProductId = "98765432"
                 }
             }
-        });
+        }).ToArray();
     }
 
-    private void SetupXblRepositoryMock()
+    private async Task SetupDatabaseMock()
     {
-        var datetime = new DateTime(2023, 6, 1);
-        _xblRepositoryMock = new Mock<IXblRepository>();
-        _xblRepositoryMock.Setup(x => x.SaveTitles(It.IsAny<string>(), It.IsAny<AchievementTitles>())).Callback((string _, AchievementTitles titles) => _titlesFile = titles);
-        _xblRepositoryMock.Setup(x => x.SaveAchievements(It.IsAny<Title>(), It.IsAny<string>())).Callback((Title title, string data) => _achievementFiles[title.IntId.ToHexId()] = data);
-        _xblRepositoryMock.Setup(x => x.SaveAchievements(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TitleDetails<Achievement>>())).Callback((string _, string hexId, TitleDetails<Achievement> achievements) => _achievementFiles[hexId] = string.Join(',', achievements.Achievements.Select(a => a.TitleName)));
-        _xblRepositoryMock.Setup(x => x.SaveStats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TitleStats>())).Callback((string _, string hexId, TitleStats stats) => _statsFiles[hexId] = stats);
-        _xblRepositoryMock.LoadJson(_ => _titlesFile.Titles);
-        _xblRepositoryMock.LoadJson(path => _achievementsTitleResponse[path]);
-        _xblRepositoryMock.Setup(x => x.GetAchievementSaveDate(It.IsAny<Title>())).Returns(datetime);
-        _xblRepositoryMock.Setup(x => x.GetStatsSaveDate(It.IsAny<Title>())).Returns(datetime);
-    }
+        _db = new DatabaseContext();
+        if (_marketplaceProducts != null)
+        {
+            var marketplace = await _db.GetRepository<Product>(DataTable.Marketplace);
+            await marketplace.BulkInsert(_marketplaceProducts);
+        }
 
-    private void SetupDboxRepositoryMock()
-    {
-        _dboxRepositoryMock = new Mock<IDboxRepository>();
-        _dboxRepositoryMock.Setup(d => d.GetMarketplaceProducts()).ReturnsAsync(_marketplaceProducts);
-        _dboxRepositoryMock.Setup(d => d.GetStoreProducts()).ReturnsAsync(_storeProducts);
+        if (_storeProducts != null)
+        {
+            var store = await _db.GetRepository<Product>(DataTable.Store);
+            await store.BulkInsert(_storeProducts);
+        }
     }
 
     private void SetupConsoleMock()

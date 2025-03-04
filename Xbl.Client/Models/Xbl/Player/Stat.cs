@@ -1,11 +1,9 @@
 ﻿using System.Text.Json.Serialization;
-using Xbl.Client.Extensions;
-using Xbl.Data;
+using Xbl.Data.Entities;
 
 namespace Xbl.Client.Models.Xbl.Player;
 
-[Database(DataSource.Live)]
-public class Stat : IHaveId
+public class Stat : IHaveIntId
 {
     [JsonPropertyName("xuid")]
     public string XUID { get; set; }

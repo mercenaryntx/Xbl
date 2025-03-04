@@ -1,13 +1,12 @@
 ﻿using System.Text.Json.Serialization;
-using Xbl.Data;
+using Xbl.Client.Extensions;
+using Xbl.Data.Entities;
 
 namespace Xbl.Client.Models.Dbox;
 
-[Database(DataSource.Dbox)]
-public class Product : IHaveId
+public class Product : IHaveIntId
 {
-    [JsonIgnore]
-    public int Id { get; set; }
+    [JsonIgnore] public int Id => TitleId.FromHexId();
 
     public string TitleId { get; set; }
     public string Title { get; set; }

@@ -1,29 +1,45 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Marketplace;
 using Xbl.Client.Models.Xbl.Player;
-using Xbl.Client.Repositories;
+using Xbl.Data;
+using Xbl.Data.Entities;
+using Xbl.Data.Repositories;
 
 namespace Xbl.Client.Io;
 
 public class XblClient : IXblClient
 {
     private readonly Settings _settings;
-    private readonly IXblRepository _xbl;
-    private readonly IDboxRepository _dbox;
     private readonly IConsole _console;
+    private readonly IMapper _mapper;
+    private readonly IDatabaseContext _live;
+    private readonly IDatabaseContext _dbox;
+    private readonly IDatabaseContext _xbl;
     private readonly HttpClient _client;
 
-    public XblClient(Settings settings, HttpClient client, IXblRepository xbl, IDboxRepository dbox, IConsole console)
+    public XblClient(
+        Settings settings, 
+        HttpClient client, 
+        IConsole console, 
+        IMapper mapper, 
+        [FromKeyedServices(DataSource.Live)] IDatabaseContext live, 
+        [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, 
+        [FromKeyedServices(DataSource.Xbl)] IDatabaseContext xbl)
     {
         _settings = settings;
         _client = client;
-        _xbl = xbl;
-        _dbox = dbox;
         _console = console;
+        _mapper = mapper;
+        _live = live;
+        _dbox = dbox;
+        _xbl = xbl;
     }
 
     public async Task<int> Update()
@@ -37,6 +53,9 @@ public class XblClient : IXblClient
 
                 if (update is "all" or "achievements")
                 {
+                    var ar = await _live.GetRepository<Achievement>();
+                    var headers = (await ar.GetHeaders()).Cast<IntKeyedJsonEntity>().GroupBy(t => t.PartitionKey).ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Id));
+
                     var src = titles.Titles
                         .Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile))
                         .GroupBy(t => t.OriginalConsole == Device.Xbox360);
@@ -45,10 +64,10 @@ public class XblClient : IXblClient
                         switch (grouping.Key)
                         {
                             case true:
-                                await UpdateAchievements(ctx, grouping, t => Get360Achievements(t, titles.Xuid));
+                                await UpdateAchievements(ctx, grouping, ar, headers, t => Get360Achievements(t, titles.Xuid));
                                 break;
                             case false:
-                                await UpdateAchievements(ctx, grouping, GetAchievements);
+                                await UpdateAchievements(ctx, grouping, ar, headers, GetAchievements);
                                 break;
                         }
                     }
@@ -70,34 +89,52 @@ public class XblClient : IXblClient
 
     public async Task GetGameDetails(IEnumerable<string[]> ids)
     {
+        var productRepository = await _xbl.GetRepository<XblProduct>("product");
+        await productRepository.Truncate();
         foreach (var id in ids)
         {
             var response = await _client.PostAsJsonAsync("marketplace/details", new { products = string.Join(',', id) });
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
-            await _xbl.SaveJson(Path.Combine(DataSource.DataFolder, "xbl", $"details.{DateTime.Now.Ticks}.json"), content);
+            var collection = JsonSerializer.Deserialize<XblProductCollection>(content);
+            await productRepository.BulkInsert(collection.Products);
         }
     }
 
     private async Task<AchievementTitles> UpdateTitles(IProgressContext ctx)
     {
+        var marketplaceRepository = await _dbox.GetRepository<Product>(DataTable.Marketplace);
+        var storeRepository = await _dbox.GetRepository<Product>(DataTable.Store);
+
         var task = ctx.AddTask("[white]Getting titles[/]", 5);
-        var marketplace = await _dbox.GetMarketplaceProducts();
+        var marketplace = (await marketplaceRepository.GetAll()).ToDictionary(m => m.TitleId);
         task.Increment(1);
 
-        var store = await _dbox.GetStoreProducts();
+        var store = (await storeRepository.GetAll()).ToDictionary(m => m.TitleId);
         task.Increment(1);
 
         var json = await _client.GetStringAsync("achievements/");
         var a = JsonSerializer.Deserialize<AchievementTitles>(json);
         task.Increment(1);
 
-        a.Titles = a.Titles.Select(t => EnrichTitle(t, store, marketplace)).ToArray();
+        var titlesRepository = await _live.GetRepository<Title>();
+        var headers = (await titlesRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
+
+        var insert = a.Titles
+            .Where(t => !headers.ContainsKey(t.Id))
+            .Select(t => EnrichTitle(t, store, marketplace))
+            .ToArray();
+        await titlesRepository.BulkInsert(insert);
         task.Increment(1);
 
-        await _xbl.SaveTitles(DataSource.Live, a);
+        var update = a.Titles
+            .Where(t => headers.TryGetValue(t.Id, out var header) && header.UpdatedOn < t.TitleHistory.LastTimePlayed)
+            .Select(t => EnrichTitle(t, store, marketplace))
+            .ToArray();
+        await titlesRepository.BulkUpdate(update);
         task.Increment(1);
 
+        a.Titles = insert.Concat(update).ToArray();
         return a;
     }
 
@@ -151,27 +188,34 @@ public class XblClient : IXblClient
         return title;
     }
 
-    private async Task UpdateAchievements(IProgressContext ctx, IEnumerable<Title> titles, Func<Title, Task> updateLogic)
+    private static async Task UpdateAchievements(IProgressContext ctx, IEnumerable<Title> titles, IRepository<Achievement> ar, Dictionary<int, Dictionary<int, IntKeyedJsonEntity>> headers, Func<Title, Task<Achievement[]>> updateLogic)
     {
-        var changes = titles.Where(title => title.TitleHistory.LastTimePlayed > _xbl.GetAchievementSaveDate(title)).ToArray();
-
-        if (changes.Length == 0) return;
-
-        foreach (var title in changes)
+        foreach (var title in titles)
         {
-            var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title.Name}[/]", 1);
-            await updateLogic(title);
+            var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title.Name}[/]", 2);
+            var a = await updateLogic(title);
+
+            if (!headers.TryGetValue(title.Id, out var achievements))
+            {
+                await ar.BulkInsert(a);
+                continue;
+            }
+
+            await ar.BulkInsert(a.Where(t => !achievements.ContainsKey(t.Id)));
+            task.Increment(1);
+
+            await ar.BulkUpdate(a.Where(t => achievements.TryGetValue(t.Id, out var header) && header.UpdatedOn < t.TimeUnlocked));
             task.Increment(1);
         }
     }
 
-    private async Task GetAchievements(Title title)
+    private async Task<Achievement[]> GetAchievements(Title title)
     {
         var s = await _client.GetStringAsync("achievements/title/" + title.IntId);
-        await _xbl.SaveAchievements(title, s);
+        return JsonSerializer.Deserialize<TitleDetails<LiveAchievement>>(s).Achievements.Select(_mapper.Map<Achievement>).ToArray();
     }
 
-    private async Task Get360Achievements(Title title, string xuid)
+    private async Task<Achievement[]> Get360Achievements(Title title, string xuid)
     {
         var s = await _client.GetStringAsync($"achievements/x360/{xuid}/title/{title.IntId}");
         var a = JsonSerializer.Deserialize<TitleDetails<Achievement>>(s);
@@ -179,16 +223,16 @@ public class XblClient : IXblClient
         {
             achievement.TitleName = title.Name;
         }
-        await _xbl.SaveAchievements(title.Source, title.HexId, a);
+
+        return a.Achievements;
     }
 
     private async Task UpdateStats(IProgressContext ctx, AchievementTitles titles)
     {
-        var changes = titles.Titles.Where(title =>
-        {
-            if (title.CompatibleDevices.Contains(Device.Mobile) || title.OriginalConsole == Device.Xbox360) return false;
-            return title.TitleHistory.LastTimePlayed > _xbl.GetStatsSaveDate(title);
-        }).ToArray();
+        var statRepository = await _live.GetRepository<Stat>();
+        var headers = (await statRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
+
+        var changes = titles.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
 
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
@@ -204,24 +248,11 @@ public class XblClient : IXblClient
             var content = await response.Content.ReadAsStringAsync();
             var stats = JsonSerializer.Deserialize<TitleStats>(content);
 
-            foreach (var stat in stats.StatListsCollection[0].Stats)
-            {
-                var titleStats = new TitleStats
-                {
-                    Groups = [],
-                    StatListsCollection =
-                    [
-                        new StatList
-                        {
-                            Stats =
-                            [
-                                stat
-                            ]
-                        }
-                    ]
-                };
-                await _xbl.SaveStats(DataSource.Live, stat.TitleId.ToHexId(), titleStats);
-            }
+            var insert = stats.StatListsCollection[0].Stats.Where(t => !headers.ContainsKey(t.Id));
+            await statRepository.BulkInsert(insert);
+
+            var update = stats.StatListsCollection[0].Stats.Where(t => headers.ContainsKey(t.Id));
+            await statRepository.BulkUpdate(update);
             task.Increment(1);
         }
     }

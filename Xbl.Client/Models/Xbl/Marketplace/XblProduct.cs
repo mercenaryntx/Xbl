@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
+using Xbl.Data.Entities;
 
 namespace Xbl.Client.Models.Xbl.Marketplace;
 
 [ExcludeFromCodeCoverage]
-public class XblProduct
+public class XblProduct : IHaveStringId
 {
     public DateTime LastModifiedDate { get; set; }
     public ProductLocalizedProperty[] LocalizedProperties { get; set; }
@@ -27,4 +29,7 @@ public class XblProduct
     public bool IsSandboxedProduct { get; set; }
     public string ProductKind { get; set; }
     public DisplaySkuAvailability[] DisplaySkuAvailabilities { get; set; }
+
+    [JsonIgnore]
+    public string Id => ProductId;
 }

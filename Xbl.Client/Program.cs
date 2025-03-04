@@ -8,7 +8,7 @@ using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
 using Xbl.Client.Repositories;
-using Xbl.Data;
+using Xbl.Data.Extensions;
 
 namespace Xbl.Client;
 

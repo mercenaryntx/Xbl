@@ -1,4 +1,4 @@
-﻿namespace Xbl.Data;
+﻿namespace Xbl.Data.Entities;
 
 public interface IHavePartitionKey
 {

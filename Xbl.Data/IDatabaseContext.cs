@@ -1,11 +1,9 @@
-﻿using System.Data;
+﻿using Xbl.Data.Entities;
+using Xbl.Data.Repositories;
 
 namespace Xbl.Data;
 
 public interface IDatabaseContext
 {
-    //IDbConnection Connection { get; }
-    //Dictionary<Type, Container> Containers { get; }
-    Task CreateTables();
-    IDataRepository<T> GetRepository<T>() where T : class, IHaveId;
+    Task<IRepository<T>> GetRepository<T>(string tableName = null) where T : class, IHaveId;
 }

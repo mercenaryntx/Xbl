@@ -21,7 +21,6 @@ public class MappingProfile : Profile
             .ForMember(d => d.Gamerscore, o => o.MapFrom(s => MapGamerscore(s.Rewards)));
 
         CreateMap<IGrouping<string, StoreProduct>, Product>()
-            .ForMember(d => d.Id, o => o.MapFrom(s => s.First().TitleId.FromHexId()))
             .ForMember(d => d.Title, o => o.MapFrom(s => s.First().ProductGroupName ?? s.First().Title))
             .ForMember(d => d.TitleId, o => o.MapFrom(s => s.First().TitleId))
             .ForMember(d => d.DeveloperName, o => o.MapFrom(s => s.First().DeveloperName))
@@ -34,7 +33,6 @@ public class MappingProfile : Profile
             .ForMember(d => d.ReleaseDate, o => o.Ignore());
 
         CreateMap<MarketplaceProduct, Product>()
-            .ForMember(d => d.Id, o => o.MapFrom(s => s.TitleId.FromHexId()))
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))
             .ForMember(d => d.Versions, o => o.Ignore())
             .ForMember(d => d.Category, o => o.Ignore())

@@ -20,6 +20,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Xbl.Client\Xbl.Client.csproj" />
+		<ProjectReference Include="..\Xbl.Data\Xbl.Data.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -1,42 +1,52 @@
 ﻿using System.Data;
-using System.Reflection;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Xbl.Data.Entities;
+using Xbl.Data.Repositories;
 
 namespace Xbl.Data;
 
-public class DatabaseContext(string db) : IDatabaseContext
+public class DatabaseContext : IDatabaseContext, IDisposable
 {
-    public IDbConnection Connection { get; } = new SqliteConnection($"Data Source={Path.Combine("data", db)}.db");
-    public Dictionary<Type, Container> Containers { get; } = AllContainers.Where(c => c.Value.Databases.Contains(db)).ToDictionary();
+    //For testing purposes only
+    public DatabaseContext()
+    {
+        Connection = new SqliteConnection("Data Source=:memory:");
+        Connection.Open();
+    }
+
+    public DatabaseContext(string db)
+    {
+        Connection = new SqliteConnection($"Data Source={Path.Combine("data", db)}.db");
+        Connection.Open();
+    }
+
+    public IDbConnection Connection { get; }
     
-    public Task CreateTables()
+    public async Task<IRepository<T>> GetRepository<T>(string tableName = null) where T : class, IHaveId
     {
-        var tasks = Containers.Select(c => Connection.ExecuteAsync(CreateTableScript(c.Value.Name)));
-        return Task.WhenAll(tasks);
+        var type = typeof(T);
+        tableName ??= type.Name.ToLower();
+        await Connection.ExecuteAsync(CreateTableScript(tableName));
+        var interfaces = type.GetInterfaces();
+        if (interfaces.Contains(typeof(IHaveIntId))) return new IntKeyedDapperRepository<T>(Connection, tableName);
+        if (interfaces.Contains(typeof(IHaveStringId))) return new StringKeyedRepository<T>(Connection, tableName);
+        throw new InvalidOperationException("Type must implement either `IHaveIntId` or `IHaveStringId`");
     }
 
-    public IDataRepository<T> GetRepository<T>() where T : class, IHaveId
+    private static string CreateTableScript(string name) 
+        => $"""
+            CREATE TABLE IF NOT EXISTS {name} (
+                Id INTEGER NOT NULL, 
+                PartitionKey INTEGER NOT NULL, 
+                UpdatedOn DATETIME NOT NULL,
+                Data JSON, 
+                PRIMARY KEY(Id, PartitionKey)
+            )
+            """;
+
+    public void Dispose()
     {
-        return new DataRepository<T>(Connection, Containers[typeof(T)].Name);
-    }
-
-    private static string CreateTableScript(string name)
-    {
-        return $"CREATE TABLE IF NOT EXISTS {name} (Id INTEGER NOT NULL, PartitionKey INTEGER NOT NULL, Data JSON, PRIMARY KEY(Id, PartitionKey))"
-    }
-
-    private static Dictionary<Type, Container> AllContainers { get; } = new();
-
-    static DatabaseContext()
-    {
-        var types = Assembly.GetEntryAssembly().GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Contains(typeof(IHaveId)));
-
-        foreach (var type in types)
-        {
-            var databaseAttribute = type.GetCustomAttribute<DatabaseAttribute>();
-            if (databaseAttribute == null) throw new InvalidOperationException($"Type {type.Name} does not have a DatabaseAttribute.");
-            AllContainers.Add(type, new Container { Name = type.Name.ToLower(), Databases = [..databaseAttribute.Databases]});
-        }
+        Connection?.Dispose();
     }
 }

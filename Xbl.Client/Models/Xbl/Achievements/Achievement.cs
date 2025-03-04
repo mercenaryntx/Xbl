@@ -1,10 +1,9 @@
 ﻿using System.Text.Json.Serialization;
-using Xbl.Data;
+using Xbl.Data.Entities;
 
 namespace Xbl.Client.Models.Xbl.Achievements;
 
-[Database(DataSource.Live, DataSource.Xbox360)]
-public class Achievement : IHaveId, IHavePartitionKey
+public class Achievement : IHaveIntId, IHavePartitionKey
 {
     [JsonPropertyName("id")]
     public int Id { get; set; }
