@@ -2,6 +2,7 @@
 using AutoMapper;
 using KustoLoco.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Xbl.Client.Extensions;
 using Xbl.Client.Io;
 using Xbl.Client.Models.Kql;
 using Xbl.Client.Models.Xbl.Achievements;
@@ -37,19 +38,19 @@ public class KustoQueryExecutor : IKustoQueryExecutor
     {
         var context = new KustoQueryContext();
 
-        var liveTitles = await GetAll<Title>(_live);
-        var x360Titles = await GetAll<Title>(_x360);
+        var liveTitles = await _live.GetAll<Title>();
+        var x360Titles = await _x360.GetAll<Title>();
 
         var titles = liveTitles.Concat(x360Titles).Select(_mapper.Map<KqlTitle>).ToImmutableArray();
         context.WrapDataIntoTable(DataTable.Titles, titles);
 
-        var liveAchievements = await GetAll<Achievement>(_live);
-        var x360Achievements = await GetAll<Achievement>(_x360);
+        var liveAchievements = await _live.GetAll<Achievement>();
+        var x360Achievements = await _x360.GetAll<Achievement>();
 
         var achievements = liveAchievements.Concat(x360Achievements).Select(_mapper.Map<KqlAchievement>).ToImmutableArray();
         context.WrapDataIntoTable(DataTable.Achievements, achievements);
 
-        var liveStats = await GetAll<Stat>(_live);
+        var liveStats = await _live.GetAll<Stat>();
         var stats = liveStats.Select(_mapper.Map<KqlMinutesPlayed>).ToImmutableArray();
         context.WrapDataIntoTable(DataTable.Stats, stats);
 
@@ -64,11 +65,5 @@ public class KustoQueryExecutor : IKustoQueryExecutor
             kql = await File.ReadAllTextAsync(kql);
         }
         return await context.RunQuery(kql);
-    }
-
-    private static async Task<IEnumerable<T>> GetAll<T>(IDatabaseContext db) where T : class, IHaveId
-    {
-        var repo = await db.GetRepository<T>();
-        return await repo.GetAll();
     }
 }

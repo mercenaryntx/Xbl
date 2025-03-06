@@ -18,7 +18,7 @@ public class DatabaseContext : IDatabaseContext, IDisposable
     public DatabaseContext(string db)
     {
         Connection = new SqliteConnection($"Data Source={Path.Combine("data", db)}.db");
-        Connection.Open();
+        //Connection.Open();
     }
 
     public IDbConnection Connection { get; }
@@ -27,11 +27,22 @@ public class DatabaseContext : IDatabaseContext, IDisposable
     {
         var type = typeof(T);
         tableName ??= type.Name.ToLower();
-        await Connection.ExecuteAsync(CreateTableScript(tableName));
+        await EnsureTable(tableName);
+
         var interfaces = type.GetInterfaces();
         if (interfaces.Contains(typeof(IHaveIntId))) return new IntKeyedDapperRepository<T>(Connection, tableName);
         if (interfaces.Contains(typeof(IHaveStringId))) return new StringKeyedRepository<T>(Connection, tableName);
         throw new InvalidOperationException("Type must implement either `IHaveIntId` or `IHaveStringId`");
+    }
+
+    public Task<IEnumerable<T>> Query<T>(string query, object param = null)
+    {
+        return Connection.QueryAsync<T>(query, param);
+    }
+
+    public Task EnsureTable(string tableName)
+    {
+        return Connection.ExecuteAsync(CreateTableScript(tableName));
     }
 
     private static string CreateTableScript(string name) 

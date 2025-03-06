@@ -1,4 +1,3 @@
-using AutoMapper;
 using FluentAssertions;
 using MicroOrm.Dapper.Repositories.Config;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
