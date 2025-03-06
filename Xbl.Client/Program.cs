@@ -46,7 +46,7 @@ public class Program
             .AddSingleton<IXblRepository, XblRepository>()
             .AddSingleton<IDboxRepository, DboxRepository>()
             .AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>()
-            .AddSingleton<IBuiltInQueries, BuiltInQueries>()
+            .AddSingleton<IBuiltInQueries, SqliteBuiltInQueries>()
             .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
             .AddSingleton<IExtendedHelp, ExtendedHelp>()
             .AddSingleton(config.CreateMapper())

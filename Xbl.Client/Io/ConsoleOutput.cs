@@ -55,15 +55,15 @@ public class ConsoleOutput : IConsole
         table.AddColumn("[bold]Rarity[/]");
 
         var i = 0;
-        //foreach (var (title, achievement, currentPercentage) in data)
-        //{
-        //    table.AddRow(
-        //        $"[silver]{++i:D3}[/]", 
-        //        $"[cyan1]{title}[/]", 
-        //        $"[silver]{achievement}[/]", 
-        //        $"[#16c60c]{currentPercentage:F}%[/]"
-        //    );
-        //}
+        foreach (var (title, achievement, currentPercentage) in data)
+        {
+            table.AddRow(
+                $"[silver]{++i:D3}[/]",
+                $"[cyan1]{title}[/]",
+                $"[silver]{achievement}[/]",
+                $"[#16c60c]{currentPercentage:F}%[/]"
+            );
+        }
         AnsiConsole.Write(table);
     }
 

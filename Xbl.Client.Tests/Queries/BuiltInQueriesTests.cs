@@ -15,7 +15,7 @@ public class BuiltInQueriesTests
 {
     private DatabaseContext _liveDb;
     private DatabaseContext _x360Db;
-    private BuiltInQueries _builtInQueries;
+    private SqliteBuiltInQueries _builtInQueries;
 
     [Fact]
     public async Task Count_ShouldReturnProfilesSummary()
@@ -160,6 +160,6 @@ public class BuiltInQueriesTests
 
         MicroOrmConfig.SqlProvider = SqlProvider.SQLite;
         var settings = new Settings { Limit = limit };
-        _builtInQueries = new BuiltInQueries(settings, _liveDb, _x360Db);
+        _builtInQueries = new SqliteBuiltInQueries(settings, _liveDb, _x360Db);
     }
 }

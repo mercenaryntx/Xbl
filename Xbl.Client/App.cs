@@ -75,15 +75,14 @@ public sealed class App : AsyncCommand<Settings>
         error = await ImportXbox360Profile();
         if (error < 0) return error;
 
+        var sw = Stopwatch.StartNew();
         if (!string.IsNullOrEmpty(settings.KustoQuery))
         {
-            var sw = Stopwatch.StartNew();
             var result = await _kustoQueryExecutor.RunKustoQuery();
             if (!string.IsNullOrEmpty(result.Error))
             {
                 return _console.ShowError(result.Error.EscapeMarkup());
             }
-            Console.WriteLine($"Query executed in {sw.ElapsedMilliseconds}ms");
             output.KustoQueryResult(result);
             return 0;
         }
@@ -113,6 +112,7 @@ public sealed class App : AsyncCommand<Settings>
             default:
                 return _console.ShowError("Unknown query alias");
         }
+        Console.WriteLine($"Query executed in {sw.ElapsedMilliseconds}ms");
 
         return 0;
     }
@@ -143,6 +143,8 @@ public sealed class App : AsyncCommand<Settings>
 
         return await _importer.Import();
     }
+
+    #region Migration
 
     private async Task MigrateLiveDataToSqlite(IProgressContext ctx)
     {
@@ -248,4 +250,6 @@ public sealed class App : AsyncCommand<Settings>
             task1.Increment(1);
         }
     }
+
+    #endregion
 }

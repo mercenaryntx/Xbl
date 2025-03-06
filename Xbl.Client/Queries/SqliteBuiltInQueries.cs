@@ -1,23 +1,18 @@
-﻿using Kusto.Language.Syntax;
-using Microsoft.Extensions.DependencyInjection;
-using NetTopologySuite.Operation.Valid;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Xbl.Client.Extensions;
 using Xbl.Client.Models;
 using Xbl.Client.Models.Xbl.Achievements;
-using Xbl.Client.Models.Xbl.Player;
-using Xbl.Client.Repositories;
 using Xbl.Data;
-using Xbl.Data.Entities;
 
 namespace Xbl.Client.Queries;
 
-public class BuiltInQueries : IBuiltInQueries
+public class SqliteBuiltInQueries : IBuiltInQueries
 {
     private readonly Settings _settings;
     private readonly IDatabaseContext _live;
     private readonly IDatabaseContext _x360;
 
-    public BuiltInQueries(Settings settings, [FromKeyedServices(DataSource.Live)] IDatabaseContext live, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360)
+    public SqliteBuiltInQueries(Settings settings, [FromKeyedServices(DataSource.Live)] IDatabaseContext live, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360)
     {
         _settings = settings;
         _live = live;
@@ -27,7 +22,14 @@ public class BuiltInQueries : IBuiltInQueries
 
     public async Task<ProfilesSummary> Count()
     {
-        const string summarizeTitles = """SELECT @Name AS Name, COUNT(*) AS Games, SUM(json_extract(Data, '$.achievement.currentAchievements')) AS Achievements, SUM(json_extract(Data, '$.achievement.currentGamerscore')) AS Gamerscore FROM title""";
+        const string summarizeTitles = """
+                                       SELECT 
+                                         @Name AS Name, 
+                                         COUNT(*) AS Games, 
+                                         SUM(json_extract(Data, '$.achievement.currentAchievements')) AS Achievements, 
+                                         SUM(json_extract(Data, '$.achievement.currentGamerscore')) AS Gamerscore 
+                                       FROM title
+                                       """;
         const string getIds = "SELECT Id FROM title";
 
         await _live.EnsureTable("title");
@@ -38,7 +40,11 @@ public class BuiltInQueries : IBuiltInQueries
         var x360Titles = (await _x360.Query<int>(getIds)).ToArray();
 
         await _live.EnsureTable("stat");
-        const string summarizeStats = "SELECT SUM(json_extract(Data, '$.IntValue')) AS Achievements FROM stat WHERE json_extract(Data, '$.name') = 'MinutesPlayed'";
+        const string summarizeStats = """
+                                      SELECT SUM(json_extract(Data, '$.IntValue')) AS Achievements 
+                                      FROM stat 
+                                      WHERE json_extract(Data, '$.name') = 'MinutesPlayed'";
+                                      """;
         var liveStats = (await _live.Query<int>(summarizeStats)).Single();
         liveSummary = liveSummary with {MinutesPlayed = TimeSpan.FromMinutes(liveStats)};
 
@@ -50,7 +56,11 @@ public class BuiltInQueries : IBuiltInQueries
         await _live.EnsureTable("achievement");
 
         const string query = """
-                             SELECT json_extract(Data, '$.titleName') AS Title, json_extract(Data, '$.name') AS Achievement, json_extract(Data, '$.rarity.currentPercentage') AS Percentage FROM achievement
+                             SELECT 
+                               json_extract(Data, '$.titleName') AS Title, 
+                               json_extract(Data, '$.name') AS Achievement, 
+                               json_extract(Data, '$.rarity.currentPercentage') AS Percentage 
+                             FROM achievement
                              WHERE json_extract(Data, '$.unlocked') = true 
                              ORDER BY json_extract(Data, '$.rarity.currentPercentage') ASC
                              LIMIT @Limit
