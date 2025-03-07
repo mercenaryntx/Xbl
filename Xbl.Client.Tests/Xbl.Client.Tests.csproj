@@ -22,4 +22,13 @@
 		<ProjectReference Include="..\Xbl.Client\Xbl.Client.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <None Update="data\live.db">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	  <None Update="data\x360.db">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
 </Project>

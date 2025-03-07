@@ -4,14 +4,13 @@ using MicroOrm.Dapper.Repositories.Config;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Xbl.Client.Models;
 using Xbl.Client.Models.Xbl.Achievements;
-using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Queries;
 using Xbl.Data;
 using Xunit;
 
 namespace Xbl.Client.Tests.Queries;
 
-public class BuiltInQueriesTests
+public class SqliteBuiltInQueriesTests
 {
     private DatabaseContext _liveDb;
     private DatabaseContext _x360Db;
@@ -30,10 +29,10 @@ public class BuiltInQueriesTests
         using (new AssertionScope())
         {
             result.Should().NotBeNull();
-            result.UniqueTitlesCount.Should().Be(974);
+            result.UniqueTitlesCount.Should().Be(22);
             result.Profiles.Should().BeEquivalentTo([
-                new ProfileSummary("Xbox Live", 601, 4274, 104993, TimeSpan.FromMinutes(371*24*60+8*60+58)),
-                new ProfileSummary("Xbox 360", 379, 3006, 50105, TimeSpan.Zero)
+                new ProfileSummary("Xbox Live", 11, 489, 11450, TimeSpan.FromMinutes(247*24*60+22*60+21)),
+                new ProfileSummary("Xbox 360", 12, 452, 8045, TimeSpan.Zero)
             ]);
         }
     }
@@ -46,11 +45,9 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.RarestAchievements();
-        var array = result.ToArray();
 
         // Assert
-        array.Should().NotBeNull();
-        array.Should().BeEquivalentTo([
+        result.Should().BeEquivalentTo([
             new RarestAchievementItem("Bless Unleashed", "An Anonymous Odyssey", 0.05),
             new RarestAchievementItem("Bless Unleashed", "Encyclopedia Historia", 0.06),
             new RarestAchievementItem("Bless Unleashed", "Battlefield Warrior", 0.11)
@@ -65,13 +62,11 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.MostComplete();
-        var array = result.ToArray();
 
         // Assert
-        array.Should().NotBeNull();
-        array.Should().BeEquivalentTo([
+        result.Should().BeEquivalentTo([
             new CompletenessItem("Borderlands 2", 1875, 1875, 100),
-            new CompletenessItem("Indiana Jones and the Great Circle", 1000, 1000, 100)
+            new CompletenessItem("The First Descendant", 1000, 1000, 100)
         ]);
     }
 
@@ -83,11 +78,9 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.SpentMostTimeWith();
-        var array = result.ToArray();
 
         // Assert
-        array.Should().NotBeNull();
-        array.Should().BeEquivalentTo([
+        result.Should().BeEquivalentTo([
             new MinutesPlayed("Bless Unleashed", 173365),
             new MinutesPlayed("The Binding of Isaac: Rebirth", 68377),
             new MinutesPlayed("Borderlands 2", 32594),
@@ -109,11 +102,9 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.WeightedRarity();
-        var array = result.ToArray();
 
         // Assert
-        array.Should().NotBeNull();
-        array.Should().BeEquivalentTo([
+        result.Should().BeEquivalentTo([
             new WeightedAchievementItem("Bless Unleashed", 
                 new AchievementSummary 
                 {
@@ -135,21 +126,15 @@ public class BuiltInQueriesTests
 
         // Act
         var result = await _builtInQueries.Categories();
-        var array = result.ToArray();
 
         // Assert
-        array.Should().NotBeNull();
-        array.Should().BeEquivalentTo([
-            new CategorySlice("Action & adventure", 540),
-            new CategorySlice("Other", 158),
-            new CategorySlice("Role playing", 59),
-            new CategorySlice("Shooter", 47),
-            new CategorySlice("Fighting", 35),
-            new CategorySlice("Racing & flying", 27),
-            new CategorySlice("Platformer", 26),
-            new CategorySlice("Card & board", 11),
-            new CategorySlice("Puzzle & trivia", 11),
-            new CategorySlice("Strategy", 10)
+        result.Should().BeEquivalentTo([
+            new CategorySlice("Action & adventure", 7),
+            new CategorySlice("Role playing", 6),
+            new CategorySlice("Shooter", 3),
+            new CategorySlice("Other", 4),
+            new CategorySlice("Sports", 1),
+            new CategorySlice("Fighting", 1)
         ]);
     }
 

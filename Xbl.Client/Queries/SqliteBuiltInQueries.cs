@@ -43,7 +43,7 @@ public class SqliteBuiltInQueries : IBuiltInQueries
         const string summarizeStats = """
                                       SELECT SUM(json_extract(Data, '$.IntValue')) AS Achievements 
                                       FROM stat 
-                                      WHERE json_extract(Data, '$.name') = 'MinutesPlayed'";
+                                      WHERE json_extract(Data, '$.name') = 'MinutesPlayed'
                                       """;
         var liveStats = (await _live.Query<int>(summarizeStats)).Single();
         liveSummary = liveSummary with {MinutesPlayed = TimeSpan.FromMinutes(liveStats)};
@@ -91,20 +91,20 @@ public class SqliteBuiltInQueries : IBuiltInQueries
 
     public async Task<IEnumerable<MinutesPlayed>> SpentMostTimeWith()
     {
-        var titles = (await _live.GetAll<Title>()).ToDictionary(t => t.Id, t => t.Name);
         await _live.EnsureTable("stat");
 
         const string query = """
                              SELECT 
-                                Id as Key,
-                                json_extract(Data, '$.IntValue') AS Value
+                               json_extract(title.Data, '$.name') as Key,
+                               json_extract(stat.Data, '$.IntValue') AS Value
                              FROM stat
-                             WHERE json_extract(Data, '$.name') = 'MinutesPlayed'
-                             ORDER BY json_extract(Data, '$.IntValue') DESC
+                             JOIN title ON stat.Id = title.Id
+                             WHERE json_extract(stat.Data, '$.name') = 'MinutesPlayed'
+                             ORDER BY json_extract(stat.Data, '$.IntValue') DESC
                              LIMIT @Limit
                              """;
-        var live = await _live.Query<KeyValuePair<int, int>>(query, _settings);
-        return live.Select(s => new MinutesPlayed(titles[s.Key], s.Value));
+        var live = await _live.Query<KeyValuePair<string, int>>(query, _settings);
+        return live.Select(s => new MinutesPlayed(s.Key, s.Value));
     }
 
     public async Task<IEnumerable<WeightedAchievementItem>> WeightedRarity()
@@ -134,14 +134,15 @@ public class SqliteBuiltInQueries : IBuiltInQueries
 
     public async Task<IEnumerable<CategorySlice>> Categories()
     {
-        var live = await _live.GetAll<Title>();
-        var x360 = await _x360.GetAll<Title>();
+        const string query = "SELECT Id AS Key, json_extract(Data, '$.category') AS Value FROM title";
+        var live = await _live.Query<KeyValuePair<int, string>>(query, _settings);
+        var x360 = await _x360.Query<KeyValuePair<int, string>>(query, _settings);
 
         return live.Concat(x360)
-            .GroupBy(t => t.Id)
-            .GroupBy(t => t.FirstOrDefault(x => x.Category != "Other")?.Category ?? "Other", StringComparer.InvariantCultureIgnoreCase)
+            .GroupBy(t => t.Key)
+            .GroupBy(t => t.FirstOrDefault(x => x.Value != "Other").Value ?? "Other", StringComparer.InvariantCultureIgnoreCase)
             .Select(g => new CategorySlice(g.Key, g.Count()))
-            .OrderByDescending(c => c.Count)
+                .OrderByDescending(c => c.Count)
             .Take(_settings.Limit);
     }
 }
