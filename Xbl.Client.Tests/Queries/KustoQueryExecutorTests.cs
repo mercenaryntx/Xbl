@@ -1,6 +1,7 @@
 using AutoMapper;
 using FluentAssertions;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
+using Microsoft.Data.Sqlite;
 using Moq;
 using Xbl.Client.Io;
 using Xbl.Client.Models.Kql;
@@ -89,6 +90,7 @@ public class KustoQueryExecutorTests
             var kqlTitle = new KqlTitle();
 
             _db = new DatabaseContext();
+            _db.Mandatory(SqliteOpenMode.ReadWriteCreate);
             var t = await _db.GetRepository<Title>();
             await t.BulkInsert(titles);
 

@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using AutoMapper;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Xbl.Client.Models.Dbox;
 using Xbl.Data;
@@ -16,7 +17,7 @@ public class DboxClient : IDboxClient
     public DboxClient(HttpClient client, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, IMapper mapper, IConsole console)
     {
         _client = client;
-        _dbox = dbox;
+        _dbox = dbox.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _mapper = mapper;
         _console = console;
     }

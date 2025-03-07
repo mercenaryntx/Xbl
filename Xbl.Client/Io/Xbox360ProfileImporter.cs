@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Xbl.Client.Extensions;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
@@ -20,8 +21,8 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
     public Xbox360ProfileImporter(Settings settings, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360, IConsole console)
     {
         _settings = settings;
-        _dbox = dbox;
-        _x360 = x360;
+        _dbox = dbox.Mandatory();
+        _x360 = x360.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _console = console;
     }
 

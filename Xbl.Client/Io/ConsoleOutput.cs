@@ -14,7 +14,7 @@ public class ConsoleOutput : IConsole
 {
     public void Render(ProfilesSummary summary)
     {
-        var table = new Table();
+        var table = new Table { ShowFooters = false };
         table.AddColumn("[bold]Profile[/]");
         table.AddColumn("[bold]Games[/]", c =>
         {

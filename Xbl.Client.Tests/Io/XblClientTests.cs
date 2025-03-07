@@ -2,6 +2,7 @@ using AutoMapper;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
+using Microsoft.Data.Sqlite;
 using Moq;
 using Spectre.Console;
 using Xbl.Client.Extensions;
@@ -580,13 +581,13 @@ public class XblClientTests
         _db = new DatabaseContext();
         if (_marketplaceProducts != null)
         {
-            var marketplace = await _db.GetRepository<Product>(DataTable.Marketplace);
+            var marketplace = await _db.Mandatory(SqliteOpenMode.ReadWriteCreate).GetRepository<Product>(DataTable.Marketplace);
             await marketplace.BulkInsert(_marketplaceProducts);
         }
 
         if (_storeProducts != null)
         {
-            var store = await _db.GetRepository<Product>(DataTable.Store);
+            var store = await _db.Mandatory(SqliteOpenMode.ReadWriteCreate).GetRepository<Product>(DataTable.Store);
             await store.BulkInsert(_storeProducts);
         }
     }

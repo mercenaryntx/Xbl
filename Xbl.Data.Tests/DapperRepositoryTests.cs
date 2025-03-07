@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MicroOrm.Dapper.Repositories.Config;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
+using Microsoft.Data.Sqlite;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Data.Repositories;
 using Xunit;
@@ -296,6 +297,7 @@ public class DapperRepositoryTests
 
         MicroOrmConfig.SqlProvider = SqlProvider.SQLite;
         _db = new DatabaseContext();
+        _db.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _repository = await _db.GetRepository<Title>();
         await _repository.BulkInsert(_titles);
     }

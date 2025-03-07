@@ -7,7 +7,7 @@ public class PlatformConverter : JsonConverter<string>
 {
     public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return "Xbox360";
+        return reader.TokenType == JsonTokenType.String ? reader.GetString() : "Xbox360";
     }
 
     public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)

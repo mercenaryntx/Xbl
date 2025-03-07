@@ -1,6 +1,9 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net.Http;
+using System;
+using System.Net.Http.Json;
 using System.Text.Json;
 using AutoMapper;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
@@ -37,9 +40,9 @@ public class XblClient : IXblClient
         _client = client;
         _console = console;
         _mapper = mapper;
-        _live = live;
+        _live = live.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _dbox = dbox;
-        _xbl = xbl;
+        _xbl = xbl.Optional();
     }
 
     public async Task<int> Update()
@@ -49,6 +52,7 @@ public class XblClient : IXblClient
         {
             await _console.Progress(async ctx =>
             {
+                if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
                 var titles = await UpdateTitles(ctx);
 
                 if (update is "all" or "achievements")
@@ -85,6 +89,18 @@ public class XblClient : IXblClient
             Console.WriteLine();
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
         }
+    }
+
+    private async Task DownloadLatestDboxDb(IProgressContext ctx)
+    {
+        var task = ctx.AddTask("[white]Getting store data[/]", 1);
+        await using var responseStream = await _client.GetStreamAsync(new Uri("http://www.mercenary.hu/xbl/dbox.db"));
+        await using (var fileStream = new FileStream(Path.Combine(DataSource.DataFolder, "dbox.db"), FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await responseStream.CopyToAsync(fileStream);
+        }
+        _dbox.Mandatory();
+        task.Increment(1);
     }
 
     public async Task GetGameDetails(IEnumerable<string[]> ids)

@@ -15,8 +15,8 @@ public class SqliteBuiltInQueries : IBuiltInQueries
     public SqliteBuiltInQueries(Settings settings, [FromKeyedServices(DataSource.Live)] IDatabaseContext live, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360)
     {
         _settings = settings;
-        _live = live;
-        _x360 = x360;
+        _live = live.Mandatory();
+        _x360 = x360.Optional();
         _settings.Limit = _settings.Limit > 0 ? _settings.Limit : 50;
     }
 
@@ -35,7 +35,7 @@ public class SqliteBuiltInQueries : IBuiltInQueries
         await _live.EnsureTable("title");
         await _x360.EnsureTable("title");
         var liveSummary = (await _live.Query<ProfileSummary>(summarizeTitles, new { Name = "Xbox Live" })).Single();
-        var x360Summary = (await _x360.Query<ProfileSummary>(summarizeTitles, new { Name = "Xbox 360" })).Single();
+        var x360Summary = (await _x360.Query<ProfileSummary>(summarizeTitles, new { Name = "Xbox 360" })).SingleOrDefault();
         var liveTitles = (await _live.Query<int>(getIds)).ToArray();
         var x360Titles = (await _x360.Query<int>(getIds)).ToArray();
 
@@ -48,7 +48,7 @@ public class SqliteBuiltInQueries : IBuiltInQueries
         var liveStats = (await _live.Query<int>(summarizeStats)).Single();
         liveSummary = liveSummary with {MinutesPlayed = TimeSpan.FromMinutes(liveStats)};
 
-        return new ProfilesSummary([liveSummary, x360Summary], liveTitles.Union(x360Titles).Count());
+        return new ProfilesSummary(x360Summary != null ? [liveSummary, x360Summary] : [liveSummary], liveTitles.Union(x360Titles).Count());
     }
 
     public async Task<IEnumerable<RarestAchievementItem>> RarestAchievements()

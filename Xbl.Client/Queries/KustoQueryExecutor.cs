@@ -30,8 +30,8 @@ public class KustoQueryExecutor : IKustoQueryExecutor
         _settings = settings;
         _console = console;
         _mapper = mapper;
-        _live = live;
-        _x360 = x360;
+        _live = live.Mandatory();
+        _x360 = x360.Optional();
     }
 
     public async Task<KustoQueryResult> RunKustoQuery()
