@@ -2,7 +2,7 @@
 
 namespace Xbl.Client.Models.Dbox;
 
-public class MarketplaceProductCollection : IProductCollection
+public class MarketplaceProductCollection : IProductCollection<MarketplaceProduct>
 {
     [JsonPropertyName("items")]
     public MarketplaceProduct[] Products { get; set; }

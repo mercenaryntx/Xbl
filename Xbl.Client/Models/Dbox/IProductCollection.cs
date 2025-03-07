@@ -1,6 +1,7 @@
 ﻿namespace Xbl.Client.Models.Dbox;
 
-public interface IProductCollection
+public interface IProductCollection<T>
 {
-    public int Count { get; set; }
+    T[] Products { get; set; }
+    int Count { get; set; }
 }

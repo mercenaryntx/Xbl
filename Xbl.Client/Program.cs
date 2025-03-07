@@ -7,7 +7,6 @@ using System.Net.Http.Headers;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
-using Xbl.Client.Repositories;
 using Xbl.Data.Extensions;
 
 namespace Xbl.Client;
@@ -43,8 +42,6 @@ public class Program
 
         var services = new ServiceCollection();
         services.AddSingleton<IConsole, ConsoleOutput>()
-            .AddSingleton<IXblRepository, XblRepository>()
-            .AddSingleton<IDboxRepository, DboxRepository>()
             .AddSingleton<IXbox360ProfileImporter, Xbox360ProfileImporter>()
             .AddSingleton<IBuiltInQueries, SqliteBuiltInQueries>()
             .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()

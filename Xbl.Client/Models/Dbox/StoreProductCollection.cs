@@ -2,7 +2,7 @@
 
 namespace Xbl.Client.Models.Dbox;
 
-public class StoreProductCollection : IProductCollection
+public class StoreProductCollection : IProductCollection<StoreProduct>
 {
     [JsonPropertyName("items")]
     public StoreProduct[] Products { get; set; }

@@ -1,31 +1,37 @@
-﻿using Xbl.Client.Models.Dbox;
-using Xbl.Client.Repositories;
+﻿using System.Text.Json;
+using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
+using Xbl.Client.Models.Dbox;
+using Xbl.Data;
 
 namespace Xbl.Client.Io;
 
 public class DboxClient : IDboxClient
 {
     private readonly HttpClient _client;
-    private readonly IDboxRepository _repository;
+    private readonly IDatabaseContext _dbox;
+    private readonly IMapper _mapper;
     private readonly IConsole _console;
 
-    public DboxClient(HttpClient client, IDboxRepository repository, IConsole console)
+    public DboxClient(HttpClient client, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, IMapper mapper, IConsole console)
     {
         _client = client;
-        _repository = repository;
+        _dbox = dbox;
+        _mapper = mapper;
         _console = console;
     }
 
     public async Task<int> Update()
     {
-        await Update<MarketplaceProductCollection>("marketplace", _ => MarketplaceFilename(1), "&product_type=1");
-        await Update<MarketplaceProductCollection>("marketplace", _ => MarketplaceFilename(14), "&product_type=14");
-        await Update<StoreProductCollection>("store", i => $"_store.{i:D3}.json");
+        await Update<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=1");
+        await Update<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=14");
+        await Update<StoreProductCollection, StoreProduct>(DataTable.Store);
         return 0;
     }
 
-    private async Task Update<T>(string type, Func<int, string> filename, string ext = "") where T : IProductCollection
+    private async Task Update<TC,TT>(string type, string ext = "") where TC : IProductCollection<TT>
     {
+        var repo = await _dbox.GetRepository<Product>(type);
         var i = 0;
         var l = 10000;
         var c = int.MaxValue;
@@ -33,16 +39,11 @@ public class DboxClient : IDboxClient
         {
             _console.MarkupLine($"Downloading {type}... {i * 100 * l / c}%");
             var s = await _client.GetStringAsync($"{type}/products?limit={l}&offset={i * l}{ext}");
-            var path = Path.Combine(DataSource.DataFolder, DataSource.Dbox, filename(i));
-            await _repository.SaveJson(path, s);
-            if (c == int.MaxValue)
-            {
-                var collection = await _repository.LoadJson<T>(path);
-                c = collection.Count;
-            }
+            var data = JsonSerializer.Deserialize<TC>(s);
+            c = data.Count;
+            var products = data.Products;
+            await repo.BulkInsert(products.Select(p => _mapper.Map<Product>(p)));
             i++;
         }
     }
-
-    private static string MarketplaceFilename(int pt) => $"_marketplace.{pt}.json";
 }
