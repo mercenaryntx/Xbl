@@ -58,15 +58,23 @@ public class SqliteBuiltInQueriesTests
     public async Task MostComplete_ShouldReturnMostComplete()
     {
         // Arrange
-        Setup(2);
+        Setup();
 
         // Act
         var result = await _builtInQueries.MostComplete();
 
         // Assert
         result.Should().BeEquivalentTo([
-            new CompletenessItem("Borderlands 2", 1875, 1875, 100),
-            new CompletenessItem("The First Descendant", 1000, 1000, 100)
+            new CompletenessItem("Borderlands 2", Device.XboxOne, 1875, 1875, 100),
+            new CompletenessItem("The First Descendant", Device.XboxOne, 1000, 1000, 100),
+            new CompletenessItem("Lies of P", Device.XboxOne, 1000, 1000, 100),
+            new CompletenessItem("Bless Unleashed", Device.XboxOne, 1000, 1000, 100),
+            new CompletenessItem("The Walking Dead", Device.Xbox360, 600, 600, 100),
+            new CompletenessItem("Walking Dead: Season 2", Device.Xbox360, 500, 500, 100),
+            new CompletenessItem("DeathSpank: T.O.V.", Device.Xbox360, 215, 215, 100),
+            new CompletenessItem("DeathSpank", Device.Xbox360, 200, 200, 100),
+            new CompletenessItem("Saints Row: The Third", Device.Xbox360, 1280, 1300, 98),
+            new CompletenessItem("Saints Row IV", Device.Xbox360, 1170, 1200, 97)
         ]);
     }
 

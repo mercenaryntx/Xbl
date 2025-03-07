@@ -1,6 +1,8 @@
-﻿using Xbl.Client.Models.Dbox;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Xbl.Client.Extensions;
+using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
-using Xbl.Client.Repositories;
+using Xbl.Data;
 using Xbl.Xbox360.Extensions;
 using Xbl.Xbox360.Io.Gpd;
 using Xbl.Xbox360.Io.Stfs;
@@ -11,15 +13,15 @@ namespace Xbl.Client.Io;
 public class Xbox360ProfileImporter : IXbox360ProfileImporter
 {
     private readonly Settings _settings;
-    private readonly IXblRepository _repository;
-	private readonly IDboxRepository _dbox;
-	private readonly IConsole _console;
+    private readonly IDatabaseContext _dbox;
+    private readonly IDatabaseContext _x360;
+    private readonly IConsole _console;
 
-    public Xbox360ProfileImporter(Settings settings, IXblRepository repository, IDboxRepository dbox, IConsole console)
+    public Xbox360ProfileImporter(Settings settings, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360, IConsole console)
     {
         _settings = settings;
-        _repository = repository;
         _dbox = dbox;
+        _x360 = x360;
         _console = console;
     }
 
@@ -31,7 +33,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
             await _console.Progress(async ctx =>
             {
                 var task = ctx.AddTask("[white]Importing X360 profile[/]", maxValue: 4);
-                var marketplace = await _dbox.GetMarketplaceProducts();
+                var marketplace = (await _dbox.GetAll<Product>(DataTable.Marketplace)).ToDictionary(m => m.TitleId);
                 task.Increment(1);
 
                 var profilePath = _settings.ProfilePath;
@@ -42,29 +44,22 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 profile.ExtractGames();
                 task.Increment(1);
 
-                var profileHex = Path.GetFileName(profilePath);
-                var titles = new AchievementTitles
-                {
-                    Xuid = profileHex,
-                    Titles = GetTitlesFromProfile(profile, marketplace)
-                };
-
-                await _repository.SaveTitles(DataSource.Xbox360, titles);
+                var titles = GetTitlesFromProfile(profile, marketplace);
+                var titlesRep = await _x360.GetRepository<Title>();
+                await titlesRep.BulkInsert(titles);
                 task.Increment(1);
 
                 var task2 = ctx.AddTask("[white]Importing achievements[/]", maxValue: profile.Games.Count);
+                var achievementRep = await _x360.GetRepository<Achievement>();
 
                 foreach (var (fileEntry, game) in profile.Games)
                 {
                     game.Parse();
 
-                    var achievements = new TitleDetails<Achievement>
-                    {
-                        Achievements = GetAchievementsFromGameFile(game, out var hadBug)
-                    };
+                    var achievements = GetAchievementsFromGameFile(game, out var hadBug);
                     if (hadBug) bugs.Add($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries were omitted.");
 
-                    await _repository.SaveAchievements(DataSource.Xbox360, game.TitleId, achievements);
+                    await achievementRep.BulkInsert(achievements);
                     task2.Increment(1);
                 }
             });
@@ -81,7 +76,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
         }
     }
 
-    private static Title[] GetTitlesFromProfile(StfsPackage profile, Dictionary<string, Product> marketplace)
+    private static IEnumerable<Title> GetTitlesFromProfile(StfsPackage profile, Dictionary<string, Product> marketplace)
     {
         return profile
             .ProfileInfo
@@ -99,7 +94,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     Name = g.TitleName,
                     Type = "Game",
                     OriginalConsole = Device.Xbox360,
-                    CompatibleDevices = new[] { Device.Xbox360 },
+                    CompatibleDevices = [Device.Xbox360],
                     Source = DataSource.Xbox360,
                     Products = new Dictionary<string, TitleProduct> {
                         { Device.Xbox360, new TitleProduct {
@@ -120,11 +115,10 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 };
 
                 return t;
-            })
-            .ToArray();
+            });
     }
 
-    private static Achievement[] GetAchievementsFromGameFile(GameFile game, out bool hadBug)
+    private static IEnumerable<Achievement> GetAchievementsFromGameFile(GameFile game, out bool hadBug)
     {
         var bug = false;
         var achievements = game.Achievements.Select(a =>
@@ -153,7 +147,7 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 bug = true;
                 return null;
             }
-        }).Where(a => a != null).ToArray();
+        }).Where(a => a != null);
 
         hadBug = bug;
         return achievements;

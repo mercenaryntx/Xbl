@@ -48,7 +48,7 @@ public class JsonFilesBuiltInQueries : IBuiltInQueries
         return titles
             .OrderByDescending(t => t.Achievement?.ProgressPercentage)
             .ThenByDescending(t => t.Achievement?.TotalGamerscore)
-            .Select(t => new CompletenessItem(t.Name, t.Achievement?.CurrentGamerscore ?? 0, t.Achievement?.TotalGamerscore ?? 0, t.Achievement?.ProgressPercentage ?? 0))
+            .Select(t => new CompletenessItem(t.Name, t.OriginalConsole, t.Achievement?.CurrentGamerscore ?? 0, t.Achievement?.TotalGamerscore ?? 0, t.Achievement?.ProgressPercentage ?? 0))
             .Take(_settings.Limit);
     }
 

@@ -75,10 +75,13 @@ public class SqliteBuiltInQueries : IBuiltInQueries
         const string query = """
                              SELECT 
                                 json_extract(Data, '$.name') AS Title, 
+                                json_extract(Data, '$.originalConsole') AS Platform, 
                                 json_extract(Data, '$.achievement.currentGamerscore') AS CurrentGamerscore, 
                                 json_extract(Data, '$.achievement.totalGamerscore') AS TotalGamerscore,
                                 json_extract(Data, '$.achievement.progressPercentage') AS ProgressPercentage 
                              FROM title
+                             ORDER BY json_extract(Data, '$.achievement.progressPercentage') DESC, 
+                                      json_extract(Data, '$.achievement.totalGamerscore') DESC
                              LIMIT @Limit
                              """;
         var live = await _live.Query<CompletenessItem>(query, _settings);

@@ -12,24 +12,24 @@ namespace Xbl.Client.Io;
 [ExcludeFromCodeCoverage]
 public class ConsoleOutput : IConsole
 {
-    public void Render(ProfilesSummary data)
+    public void Render(ProfilesSummary summary)
     {
         var table = new Table();
         table.AddColumn("[bold]Profile[/]");
         table.AddColumn("[bold]Games[/]", c =>
         {
             c.Alignment = Justify.Right;
-            c.Footer($"{data.Profiles.Sum(p => p.Games)}|{data.UniqueTitlesCount}");
+            c.Footer($"{summary.Profiles.Sum(p => p.Games)}|{summary.UniqueTitlesCount}");
 
         });
         table.AddColumn("[bold]Achievements[/]", c => c.Alignment = Justify.Right);
         table.AddColumn("[bold]Gamerscore[/]", c => c.Alignment = Justify.Right);
         table.AddColumn("[bold]Hours played[/]", c => c.Alignment = Justify.Right);
 
-        RenderProfile(table, data.Profiles[0], "Xbox Live", "green3_1");
-        if (data.Profiles.Length > 1)
+        RenderProfile(table, summary.Profiles[0], "Xbox Live", "green3_1");
+        if (summary.Profiles.Length > 1)
         {
-            RenderProfile(table, data.Profiles[1], "Xbox 360", "cyan1");
+            RenderProfile(table, summary.Profiles[1], "Xbox 360", "cyan1");
             table.ShowFooters = true;
         }
         AnsiConsole.Write(table);
@@ -46,7 +46,7 @@ public class ConsoleOutput : IConsole
         table.AddRow(profile, c1, count, sum, hours);
     }
 
-    public void Render(IEnumerable<RarestAchievementItem> data)
+    public void Render(IEnumerable<RarestAchievementItem> rarity)
     {
         var table = new Table();
         table.AddColumn("[bold]No.[/]");
@@ -55,7 +55,7 @@ public class ConsoleOutput : IConsole
         table.AddColumn("[bold]Rarity[/]");
 
         var i = 0;
-        foreach (var (title, achievement, currentPercentage) in data)
+        foreach (var (title, achievement, currentPercentage) in rarity)
         {
             table.AddRow(
                 $"[silver]{++i:D3}[/]",
@@ -90,7 +90,7 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(table);
     }
 
-    public void Render(IEnumerable<CompletenessItem> data)
+    public void Render(IEnumerable<CompletenessItem> completeness)
     {
         var table = new Table();
         table.AddColumn("[bold]No.[/]");
@@ -99,11 +99,17 @@ public class ConsoleOutput : IConsole
         table.AddColumn("[bold]Progress[/]");
 
         var i = 0;
-        foreach (var title in data)
+        foreach (var title in completeness)
         {
+            var color = title.Platform switch
+            {
+                Device.Xbox360 => "#16c60c",
+                Device.XboxOne => "cyan1",
+                _ => "dodgerblue1"
+            };
             table.AddRow(
                 $"[silver]{++i:D3}[/]",
-                $"[cyan1]{title.Title}[/]",
+                $"[{color}]{title.Title}[/]",
                 $"[silver]{title.CurrentGamerscore}/{title.TotalGamerscore}[/]",
                 $"[#16c60c]{title.ProgressPercentage:F}%[/]"
             );
@@ -111,13 +117,13 @@ public class ConsoleOutput : IConsole
         AnsiConsole.Write(table);
     }
 
-    public void Render(IEnumerable<MinutesPlayed> data)
+    public void Render(IEnumerable<MinutesPlayed> minutesPlayed)
     {
         var chart = new BreakdownChart().Width(120);
         var colors = GetColorScheme();
 
         var i = 0;
-        foreach (var (title, played) in data)
+        foreach (var (title, played) in minutesPlayed)
         {
             chart.AddItem(title, Math.Round(TimeSpan.FromMinutes(played).TotalHours, 2), colors[i++]);
         }
