@@ -3,7 +3,7 @@
 Whether you’re using **Xbox Live** or have an old **Xbox 360** profile, this tool has you covered.
 
 # Features
-- **Comprehensive Compatibility**: Works with both online Xbox Live and offline Xbox 360 profiles, as well as Xbox Store and legacy Marketplace data.
+- **Comprehensive Compatibility**: Works with both online Xbox Live and offline Xbox 360 profiles, as well as Xbox Store and legacy Marketplace data. (Kudos to [xbl.io](https://xbl.io) and [dbox.tools](https://dbox.tools/))
 - **Built-in Queries**: Utilize pre-defined queries to quickly access the data you need.
 - **KQL Capabilities**: Leverage Kusto Query Language (KQL) for advanced data analysis and custom queries.
 - **Versatile Output Formats**: Beautiful console outputs, JSON data and interactive HTML charts export.
@@ -15,7 +15,7 @@ Whether you’re using **Xbox Live** or have an old **Xbox 360** profile, this t
 **Xbl CLI** is built on OpenXBL, an unofficial Xbox Live API.<br>
 In order to use **Xbl CLI** first you are going to need an OpenXBL registration and a personal API key.
 
-1. Go to [xbl.io](http://xbl.io)
+1. Go to [xbl.io](https://xbl.io)
 2. Login with your Xbox Live account
 3. On the profile page create a new API key
 4. Save it, as you won't be able to recover it from the site later
