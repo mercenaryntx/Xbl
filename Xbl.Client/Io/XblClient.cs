@@ -93,15 +93,37 @@ public class XblClient : IXblClient
 
     private async Task DownloadLatestDboxDb(IProgressContext ctx)
     {
-        var task = ctx.AddTask("[white]Getting store data[/]", 1);
-        await using var responseStream = await _client.GetStreamAsync(new Uri("http://www.mercenary.hu/xbl/dbox.db"));
-        await using (var fileStream = new FileStream(Path.Combine(DataSource.DataFolder, "dbox.db"), FileMode.Create, FileAccess.Write, FileShare.None))
+        var task = ctx.AddTask("[white]Getting store data[/]", 100);
+        var response = await _client.GetAsync(new Uri("http://www.mercenary.hu/xbl/dbox.db"), HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+        var canReportProgress = totalBytes != -1;
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        var filePath = Path.Combine(DataSource.DataFolder, "dbox.db");
+        await using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            await responseStream.CopyToAsync(fileStream);
+            var buffer = new byte[8192];
+            long totalReadBytes = 0;
+            int readBytes;
+
+            while ((readBytes = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, readBytes);
+                if (canReportProgress)
+                {
+                    totalReadBytes += readBytes;
+                    var progress = (double)totalReadBytes / totalBytes * 100;
+                    task.Value = progress;
+                }
+            }
         }
+
         _dbox.Mandatory();
-        task.Increment(1);
+        task.Increment(100 - task.Value); // Ensure the task is marked as complete
     }
+
 
     public async Task GetGameDetails(IEnumerable<string[]> ids)
     {
@@ -151,6 +173,7 @@ public class XblClient : IXblClient
         task.Increment(1);
 
         a.Titles = insert.Concat(update).ToArray();
+        if (a.Titles.Any(t => t.Products == null)) _console.ShowError("Some titles are missing from the Store or Marketplace data.");
         return a;
     }
 
@@ -220,7 +243,7 @@ public class XblClient : IXblClient
             await ar.BulkInsert(a.Where(t => !achievements.ContainsKey(t.Id)));
             task.Increment(1);
 
-            await ar.BulkUpdate(a.Where(t => achievements.TryGetValue(t.Id, out var header) && header.UpdatedOn < t.TimeUnlocked));
+            await ar.BulkUpdate(a.Where(t => achievements.ContainsKey(t.Id)));
             task.Increment(1);
         }
     }
