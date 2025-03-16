@@ -2,6 +2,7 @@ using FluentAssertions;
 using MicroOrm.Dapper.Repositories.Config;
 using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Microsoft.Data.Sqlite;
+using Xbl.Client.Models;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Data.Repositories;
 using Xunit;
@@ -66,17 +67,30 @@ public class DapperRepositoryTests
         result.Should().BeEquivalentTo(_titles.Where(t => t.Name == "Game1"));
     }
 
-    [Fact(Skip = "Projection is not supported yet")]
-    public async Task AsQueryable_Select()
+    [Fact]
+    public async Task AsQueryable_SelectWithClass()
     {
         // Arrange
         await Setup();
 
         // Act
-        var result = _repository.AsQueryable().Select(t => t.Name).ToArray();
+        var result = _repository.AsQueryable().Select(t => new Title { Name = t.Name, IntId = t.IntId }).ToArray();
 
         // Assert
-        result.Should().BeEquivalentTo(_titles.Select(t => t.Name));
+        result.Should().BeEquivalentTo(_titles.Select(t => new Title { Name = t.Name, IntId = t.IntId }));
+    }
+
+    [Fact]
+    public async Task AsQueryable_SelectWithRecord()
+    {
+        // Arrange
+        await Setup();
+
+        // Act
+        var result = _repository.AsQueryable().Select(t => new MinutesPlayed(t.Name, t.Id)).ToArray();
+
+        // Assert
+        result.Should().BeEquivalentTo(_titles.Select(t => new MinutesPlayed(t.Name, 0)));
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public class DatabaseContext : IDatabaseContext, IDisposable
     private IDbConnection _connection;
     public IDbConnection Connection => _connection ??= CreateConnection(_source, SqliteOpenMode.ReadOnly);
 
-    public bool IsExists => File.Exists(_source);
+    public bool IsExists => _source == MEMORY || File.Exists(_source);
     public bool IsVoid => _connectionStringBuilder.DataSource != _source;
     public bool IsReadOnly => _connectionStringBuilder.Mode == SqliteOpenMode.ReadOnly;
 

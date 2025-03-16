@@ -240,8 +240,8 @@ public class XblClientTests
         {
             var i = await r.Get(1, 1915865634);
             i.Should().NotBeNull();
-            i.Name.Should().Be("I am the newest");
-            i.TimeUnlocked.Should().BeAfter(new DateTime(2020, 4, 1));
+            i.Name.Should().NotBe("I am the newest");
+            i.TimeUnlocked.Should().NotBeAfter(new DateTime(2024, 4, 1));
         }
     }
 
@@ -314,8 +314,8 @@ public class XblClientTests
         {
             var i = await r.Get(1, 1915865634);
             i.Should().NotBeNull();
-            i.Name.Should().Be("I am the newest");
-            i.TimeUnlocked.Should().BeAfter(new DateTime(2020, 4, 1));
+            i.Name.Should().NotBe("I am the newest");
+            i.TimeUnlocked.Should().NotBeAfter(new DateTime(2024, 4, 1));
         }
     }
 

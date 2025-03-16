@@ -4,73 +4,77 @@ using MicroOrm.Dapper.Repositories.SqlGenerator.Filters;
 
 namespace Xbl.Data;
 
-internal class SqlQueryVisitor : ExpressionVisitor
+internal class SqlQueryVisitor(Dictionary<string, SqlPropertyMetadata> propertyMapping = null) : ExpressionVisitor
 {
-    private readonly Dictionary<string, SqlPropertyMetadata> _propertyMapping;
+    private readonly Dictionary<string, SqlPropertyMetadata> _propertyMapping = propertyMapping ?? new Dictionary<string, SqlPropertyMetadata>();
 
     public LambdaExpression Where { get; private set; }
     public FilterData FilterData { get; } = new();
-
-    public SqlQueryVisitor(Dictionary<string, SqlPropertyMetadata> propertyMapping = null)
-    {
-        _propertyMapping = propertyMapping ?? new Dictionary<string, SqlPropertyMetadata>();
-    }
+    public bool UsedPropertyMapping { get; private set; }
+    public string MethodName { get; private set; }
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
+        MethodName ??= node.Method.Name;
         switch (node.Method.Name)
         {
-            case "Any":
-            case "Count":
-            case "Where":
-            case "First":
-            case "FirstOrDefault":
-            case "Single":
-            case "SingleOrDefault":
+            case nameof(Queryable.Any):
+            case nameof(Queryable.Count):
+            case nameof(Queryable.Where):
+            case nameof(Queryable.First):
+            case nameof(Queryable.FirstOrDefault):
+            case nameof(Queryable.Single):
+            case nameof(Queryable.SingleOrDefault):
                 var where = GetLambda(node);
                 if (where != null)
                 {
                     Where = Where == null ? where : MergeWheres(Where, where);
                 }
+
+                if (node.Method.Name == nameof(Queryable.Count))
+                {
+                    SetSelectInfo(["COUNT(*)"]);
+                }
                 break;
-            case "OrderBy":
+            case nameof(Queryable.OrderBy):
                 FilterData.OrderInfo ??= new OrderInfo();
                 FilterData.OrderInfo.Direction = OrderInfo.SortDirection.ASC;
                 FilterData.OrderInfo.Columns ??= [];
                 FilterData.OrderInfo.Columns.Insert(0, GetPropertyName(node));
                 break;
-            case "OrderByDescending":
+            case nameof(Queryable.OrderByDescending):
                 FilterData.OrderInfo ??= new OrderInfo();
                 FilterData.OrderInfo.Direction = OrderInfo.SortDirection.DESC;
                 FilterData.OrderInfo.Columns ??= [];
                 FilterData.OrderInfo.Columns.Insert(0, GetPropertyName(node));
                 break;
-            case "ThenBy":
-            case "ThenByDescending":
+            case nameof(Queryable.ThenBy):
+            case nameof(Queryable.ThenByDescending):
                 FilterData.OrderInfo ??= new OrderInfo();
                 FilterData.OrderInfo.Columns ??= [];
                 FilterData.OrderInfo.Columns.Add(GetPropertyName(node));
                 break;
-            case "Take":
+            case nameof(Queryable.Take):
                 FilterData.LimitInfo ??= new LimitInfo();
                 FilterData.LimitInfo.Limit = GetIntegerArgument(node);
                 break;
-            case "Skip":
+            case nameof(Queryable.Skip):
                 FilterData.LimitInfo ??= new LimitInfo { Limit = uint.MaxValue };
                 FilterData.LimitInfo.Offset = GetIntegerArgument(node);
                 break;
-            case "DistinctBy":
+            case nameof(Queryable.DistinctBy):
+                UsedPropertyMapping = true;
                 var propertyName = GetPropertyName(node);
                 if (_propertyMapping.TryGetValue(propertyName, out var column))
                 {
-                    var selection = $"DISTINCT {column.ColumnName}";
-                    if (!string.IsNullOrEmpty(column.Alias))
-                    {
-                        selection += $" AS {column.Alias}";
-                    }
-                    FilterData.SelectInfo ??= new SelectInfo();
-                    FilterData.SelectInfo.Columns = [selection];
+                    SetSelectInfo([$"DISTINCT {MapColumn(column)}"]);
                 }
+                break;
+            case nameof(Queryable.Select):
+                UsedPropertyMapping = true;
+                var collector = new PropertyReferenceCollector();
+                collector.Visit(node.Arguments[1]);
+                SetSelectInfo(collector.PropertyReferences.Select(p => MapColumn(_propertyMapping[p])).ToList());
                 break;
             default:
                 throw new NotSupportedException("Method not supported: " + node.Method.Name);
@@ -101,5 +105,24 @@ internal class SqlQueryVisitor : ExpressionVisitor
     {
         var constant = (ConstantExpression)node.Arguments[1];
         return Convert.ToUInt32(constant.Value);
+    }
+
+    private static string MapColumn(SqlPropertyMetadata column)
+    {
+        var selection = column.ColumnName;
+        if (!string.IsNullOrEmpty(column.Alias))
+        {
+            selection += $" AS {column.Alias}";
+        }
+        return selection;
+    }
+
+    private void SetSelectInfo(List<string> columns)
+    {
+        if (FilterData.SelectInfo != null) return;
+        FilterData.SelectInfo = new SelectInfo
+        {
+            Columns = columns
+        };
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Net.Http;
-using System;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using AutoMapper;
 using Microsoft.Data.Sqlite;
@@ -53,6 +51,7 @@ public class XblClient : IXblClient
             await _console.Progress(async ctx =>
             {
                 if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
+                _dbox.Mandatory();
                 var titles = await UpdateTitles(ctx);
 
                 if (update is "all" or "achievements")
@@ -119,8 +118,6 @@ public class XblClient : IXblClient
                 }
             }
         }
-
-        _dbox.Mandatory();
         task.Increment(100 - task.Value); // Ensure the task is marked as complete
     }
 
@@ -237,6 +234,7 @@ public class XblClient : IXblClient
             if (!headers.TryGetValue(title.Id, out var achievements))
             {
                 await ar.BulkInsert(a);
+                task.Increment(2);
                 continue;
             }
 

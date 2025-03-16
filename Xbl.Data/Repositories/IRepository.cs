@@ -2,20 +2,21 @@
 
 namespace Xbl.Data.Repositories;
 
-public interface IRepository<TType> where TType : class, IHaveId
+public interface IRepository
 {
     Task Truncate();
+    Task<IEnumerable<IJsonEntity>> GetHeaders();
+}
+
+public interface IRepository<TType> : IRepository where TType : class, IHaveId
+{
     Task Insert(TType item);
     Task BulkInsert(IEnumerable<TType> items);
     Task Update(TType item);
     Task BulkUpdate(IEnumerable<TType> items);
     Task Delete(TType item);
-    Task<IEnumerable<TType>> GetAll();
-
-    Task<IEnumerable<IJsonEntity>> GetHeaders();
-
     Task<TType> Get<TKey>(TKey id, int partitionKey = 0);
-
+    Task<IEnumerable<TType>> GetAll();
     IQueryable<TType> AsQueryable();
 }
 

@@ -4,13 +4,13 @@ using MicroOrm.Dapper.Repositories;
 
 namespace Xbl.Data;
 
-public class DapperQueryable<TEntity> : IOrderedQueryable<TEntity> where TEntity : class
+public class DapperQueryable<TEntity, TProjection> : IOrderedQueryable<TProjection> where TEntity : class
 {
-    private readonly DapperProvider<TEntity> _provider;
+    private readonly DapperProvider<TEntity, TProjection> _provider;
 
     public DapperQueryable(IReadOnlyDapperRepository<TEntity> inner, Expression expression = null)
     {
-        _provider = new DapperProvider<TEntity>(inner, expression ?? Expression.Constant(this));
+        _provider = new DapperProvider<TEntity, TProjection>(inner, expression ?? Expression.Constant(this));
     }
 
     public Type ElementType => typeof(TEntity);
@@ -19,9 +19,9 @@ public class DapperQueryable<TEntity> : IOrderedQueryable<TEntity> where TEntity
 
     public IQueryProvider Provider => _provider;
 
-    public IEnumerator<TEntity> GetEnumerator()
+    public IEnumerator<TProjection> GetEnumerator()
     {
-        return _provider.Execute<IEnumerable<TEntity>>(Expression).GetEnumerator();
+        return _provider.Execute<IEnumerable<TProjection>>(Expression).GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

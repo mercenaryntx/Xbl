@@ -1,9 +1,6 @@
 ﻿using System.Collections;
-using System.Dynamic;
 using System.Linq.Expressions;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using AutoMapper;
 using Dapper;
 using MicroOrm.Dapper.Repositories;
 using Microsoft.Data.Sqlite;
@@ -12,7 +9,7 @@ using Xbl.Data.Extensions;
 
 namespace Xbl.Data;
 
-public class DapperProvider<TEntity> : IQueryProvider where TEntity : class
+public class DapperProvider<TEntity, TProjection> : IQueryProvider where TEntity : class
 {
     private readonly IReadOnlyDapperRepository<TEntity> _inner;
     public Expression Expression { get; }
@@ -25,89 +22,46 @@ public class DapperProvider<TEntity> : IQueryProvider where TEntity : class
 
     public IQueryable CreateQuery(Expression expression) => CreateQuery<object>(expression);
 
-    public IQueryable<TNewOutput> CreateQuery<TNewOutput>(Expression expression)
+    public IQueryable<TNewTarget> CreateQuery<TNewTarget>(Expression expression)
     {
-        if (typeof(TNewOutput) != typeof(TEntity))
-        {
-            throw new NotSupportedException("Projection is not supported");
-        }
-        return (IQueryable<TNewOutput>)new DapperQueryable<TEntity>(_inner, expression);
+        return new DapperQueryable<TEntity, TNewTarget>(_inner, expression);
     }
 
     public object Execute(Expression expression) => Execute<object>(expression);
 
-    public T Execute<T>(Expression expression)
-    {
-        return (T)ExecuteDefault(expression, typeof(T));
-    }
-
-    private object ExecuteDefault(Expression expression, Type resultType)
-    {
-        return typeof(IEnumerable).IsAssignableFrom(expression.Type)
-            ? ExecuteAsEnumerable(expression)
-            : ExecuteAsSingle(expression, resultType);
-    }
+    public T Execute<T>(Expression expression) =>
+        typeof(IEnumerable).IsAssignableFrom(expression.Type)
+            ? (T)ExecuteAsEnumerable(expression)
+            : (T)ExecuteAsSingle(expression);
 
     private object ExecuteAsEnumerable(Expression expression)
     {
-        var query = _inner.GetSelectAllSqlQuery(expression);
-        var sql = ReplaceFieldReferences(query.GetSql());
+        var visitor = _inner.Visit(expression);
+        var where = (Expression<Func<TEntity, bool>>)visitor.Where;
+        var query = _inner.SqlGenerator.GetSelectAll(where, visitor.FilterData);
+        var sql = query.GetSql().FixFieldReferencesInQuery<TEntity>();
 
-        var methodExpression = expression as MethodCallExpression;
-        if (methodExpression?.Method.Name != "DistinctBy")
-        {
-            return TypeSwitch(sql, query.Param);
-        }
-
-        var result = _inner.Connection.Query(sql, query.Param);
-        var mapper = new MapperConfiguration(c =>
-        {
-            c.CreateMap<IDictionary<string, object>, TEntity>()
-                .ConvertUsing((source, destination, context) =>
-                {
-                    destination ??= Activator.CreateInstance<TEntity>();
-
-                    foreach (var (key, value) in source)
-                    {
-                        var property = destination.GetType().GetProperty(key);
-                        if (property != null && property.CanWrite)
-                        {
-                            var mapped = context.Mapper.Map(value, value.GetType(), property.PropertyType);
-                            property.SetValue(destination, mapped);
-                        }
-                    }
-                    return destination;
-                });
-
-        }).CreateMapper();
-        var x = result.Select(r => mapper.Map<TEntity>((IDictionary<string, object>)r));
-        return x;
+        return !visitor.UsedPropertyMapping
+            ? MapToEntity(sql, query.Param)
+            : _inner.Connection.Query(sql, query.Param).Map<TProjection>();
     }
 
-    private object ExecuteAsSingle(Expression expression, Type resultType)
+    private object ExecuteAsSingle(Expression expression)
     {
-        object result;
-        var query = _inner.GetSelectFirstSqlQuery(expression);
-        var sql = ReplaceFieldReferences(query.GetSql());
-        var methodExpression = expression as MethodCallExpression;
-        if (methodExpression?.Method.Name == "Count")
-        {
-            sql = Regex.Replace(sql, "SELECT (.*?) FROM", "SELECT COUNT(*) FROM");
-            result = _inner.Connection.QueryFirst<int>(sql, query.Param);
-        }
-        else
-        {
-            result = TypeSwitch(sql, query.Param).FirstOrDefault();
-        }
+        var visitor = _inner.Visit(expression);
+        var where = (Expression<Func<TEntity, bool>>)visitor.Where;
+        var query = _inner.SqlGenerator.GetSelectFirst(where, visitor.FilterData);
+        var sql = query.GetSql().FixFieldReferencesInQuery<TEntity>();
 
-        if (typeof(bool).IsAssignableFrom(resultType))
+        return visitor.MethodName switch
         {
-            result = result != null;
-        }
-        return result;
+            nameof(Queryable.Count) => _inner.Connection.QueryFirst<int>(sql, query.Param),
+            nameof(Queryable.Any) => _inner.Connection.QueryFirst<int>(sql, query.Param) > 0,
+            _ => MapToEntity(sql, query.Param).FirstOrDefault()
+        };
     }
 
-    private IEnumerable<TEntity> TypeSwitch(string sql, object param)
+    private IEnumerable<TEntity> MapToEntity(string sql, object param)
     {
         var interfaces = typeof(TEntity).GetInterfaces();
         if (interfaces.Contains(typeof(IHaveIntId))) return ParseResult<IntKeyedJsonEntity>(sql, param);
@@ -128,30 +82,5 @@ public class DapperProvider<TEntity> : IQueryProvider where TEntity : class
         {
             throw new Exception($"Query execution failed: {sql}", e);
         }
-    }
-
-    private string ReplaceFieldReferences(string query)
-    {
-        const string where = @"(?<=FROM\s+(?<table>\w+)\s+WHERE\s+)(?<condition>(\k<table>\.\w+\s*=\s*@\w+)(?:\s+AND\s+|\s+OR\s+)?)+";
-        const string orderBy = @"(?<=ORDER BY )(?:(?:(?<column>\w+)(?:\sASC|\sDESC|)\s*)(?:\s*,\s*)?)+";
-
-        var mapping = PropertyMappings.GetMapping<TEntity>();
-
-        query = Regex.Replace(query, where, match =>
-        {
-            var table = match.Groups["table"].Value;
-            var condition = match.Groups["condition"].Value;
-            return Regex.Replace(condition, $@"{table}\.(\w+)\s*=\s*(@\w+)", mm =>
-            {
-                var field = mm.Groups[1].Value;
-                return $"{mapping[field].ColumnName} = {mm.Groups[2].Value}";
-            });
-        });
-
-        return Regex.Replace(query, orderBy, match =>
-        {
-            var columns = match.Groups["column"].Captures;
-            return string.Join(", ", columns.Select(c => mapping[c.Value].ColumnName));
-        });
     }
 }

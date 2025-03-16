@@ -1,21 +1,13 @@
 ﻿using System.Data;
 using System.Text.Json;
 using Dapper;
-using MicroOrm.Dapper.Repositories;
-using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Xbl.Data.Entities;
 
 namespace Xbl.Data.Repositories;
 
-public class StringKeyedRepository<T> : DapperRepositoryBase<T>, IRepository<string, T> where T : class, IHaveId
+public class StringKeyedRepository<T>(IDbConnection connection, string tableName) : DapperRepositoryBase<T>(connection, tableName), IRepository<string, T>
+    where T : class, IHaveId
 {
-    private readonly DapperRepository<T> _innerRepository;
-
-    public StringKeyedRepository(IDbConnection connection, string tableName) : base(connection, tableName)
-    {
-        _innerRepository = new DapperRepository<T>(connection, new SqlGenerator<T>());
-    }
-
     public async Task<T> Get(string id, int partitionKey = 0)
     {
         var item = await GetWithTypedContainer<StringKeyedJsonEntity>(new { Id = id, PartitionKey = partitionKey });
@@ -26,11 +18,6 @@ public class StringKeyedRepository<T> : DapperRepositoryBase<T>, IRepository<str
     {
         if (id is string stringKey) return Get(stringKey, partitionKey);
         throw new InvalidOperationException("Key can only be string here");
-    }
-
-    public IQueryable<T> AsQueryable()
-    {
-        return new DapperQueryable<T>(_innerRepository);
     }
 
     protected override async Task<IEnumerable<IJsonEntity>> Query(string sql)

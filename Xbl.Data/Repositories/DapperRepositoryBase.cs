@@ -1,19 +1,28 @@
 ﻿using System.Data;
 using System.Text.Json;
 using Dapper;
+using MicroOrm.Dapper.Repositories;
+using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Xbl.Data.Entities;
 
 namespace Xbl.Data.Repositories;
 
-public abstract class DapperRepositoryBase<T> where T : class, IHaveId
+public abstract class DapperRepositoryBase<T> : IRepository where T : class, IHaveId
 {
     protected readonly IDbConnection Connection;
+    protected readonly DapperRepository<T> InnerRepository;
     private readonly string _tableName;
 
     protected DapperRepositoryBase(IDbConnection connection, string tableName)
     {
         Connection = connection;
         _tableName = tableName;
+        InnerRepository = new DapperRepository<T>(connection, new SqlGenerator<T>());
+    }
+
+    public IQueryable<T> AsQueryable()
+    {
+        return new DapperQueryable<T,T>(InnerRepository);
     }
 
     public Task Truncate()
