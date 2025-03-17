@@ -50,9 +50,12 @@ public class DboxClient : IDboxClient
 
     public async Task<IEnumerable<Product>> GetDelta()
     {
+        var type = DataTable.Store;
         var l = 10000;
-        var lastUpdated = await _dbox.QuerySingle<DateTime>($"SELECT UpdatedOn FROM {DataTable.Store} ORDER BY UpdatedOn DESC");
-        var s = await _client.GetStringAsync($"{DataTable.Store}/products?product_type=Game&order_by=revision_id&order_direction=desc&limit={l}&offset=0");
-        return null;
+        var lastUpdated = await _dbox.QuerySingle<DateTime>($"SELECT UpdatedOn FROM {type} ORDER BY UpdatedOn DESC");
+
+        var s = await _client.GetStringAsync($"{type}/products?product_type=Game&order_by=revision_id&order_direction=desc&limit={l}&offset=0");
+        var data = JsonSerializer.Deserialize<StoreProductCollection>(s);
+        return data.Products.Where(p => p.RevisionId > lastUpdated).Select(_mapper.Map<Product>).ToArray();
     }
 }

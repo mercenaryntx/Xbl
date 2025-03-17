@@ -25,13 +25,10 @@ public sealed class App : AsyncCommand<Settings>
     {
         if (!Directory.Exists(DataSource.DataFolder)) Directory.CreateDirectory(DataSource.DataFolder);
 
-        //1. get delta
         var newProducts = (await _dbox.GetDelta()).ToArray();
 
-        //2. get Xbl game details
         var xblProducts = await _xbl.GetGameDetails(newProducts.SelectMany(p => p.Versions.Select(v => v.Value.ProductId)));
 
-        //3. enrich delta
         var repo = await _dboxDb.GetRepository<Product>(DataTable.Store);
         foreach (var product in newProducts)
         {
