@@ -7,7 +7,6 @@ using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
-using Xbl.Client.Models.Xbl.Marketplace;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Data;
 using Xbl.Data.Entities;
@@ -22,7 +21,6 @@ public class XblClient : IXblClient
     private readonly IMapper _mapper;
     private readonly IDatabaseContext _live;
     private readonly IDatabaseContext _dbox;
-    private readonly IDatabaseContext _xbl;
     private readonly HttpClient _client;
 
     public XblClient(
@@ -31,8 +29,7 @@ public class XblClient : IXblClient
         IConsole console, 
         IMapper mapper, 
         [FromKeyedServices(DataSource.Live)] IDatabaseContext live, 
-        [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, 
-        [FromKeyedServices(DataSource.Xbl)] IDatabaseContext xbl)
+        [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox)
     {
         _settings = settings;
         _client = client;
@@ -40,7 +37,6 @@ public class XblClient : IXblClient
         _mapper = mapper;
         _live = live.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _dbox = dbox;
-        _xbl = xbl.Optional();
     }
 
     public async Task<int> Update()
@@ -121,39 +117,22 @@ public class XblClient : IXblClient
         task.Increment(100 - task.Value); // Ensure the task is marked as complete
     }
 
-
-    public async Task GetGameDetails(IEnumerable<string[]> ids)
-    {
-        var productRepository = await _xbl.GetRepository<XblProduct>("product");
-        await productRepository.Truncate();
-        foreach (var id in ids)
-        {
-            var response = await _client.PostAsJsonAsync("marketplace/details", new { products = string.Join(',', id) });
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-            var collection = JsonSerializer.Deserialize<XblProductCollection>(content);
-            await productRepository.BulkInsert(collection.Products);
-        }
-    }
-
     private async Task<AchievementTitles> UpdateTitles(IProgressContext ctx)
     {
         var marketplaceRepository = await _dbox.GetRepository<Product>(DataTable.Marketplace);
         var storeRepository = await _dbox.GetRepository<Product>(DataTable.Store);
 
-        var task = ctx.AddTask("[white]Getting titles[/]", 5);
         var marketplace = (await marketplaceRepository.GetAll()).ToDictionary(m => m.TitleId);
-        task.Increment(1);
-
         var store = (await storeRepository.GetAll()).ToDictionary(m => m.TitleId);
-        task.Increment(1);
 
+        var task = ctx.AddTask("[white]Getting titles[/]", 4);
         var json = await _client.GetStringAsync("achievements/");
         var a = JsonSerializer.Deserialize<AchievementTitles>(json);
         task.Increment(1);
 
         var titlesRepository = await _live.GetRepository<Title>();
         var headers = (await titlesRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
+        task.Increment(1);
 
         var insert = a.Titles
             .Where(t => !headers.ContainsKey(t.Id))
@@ -277,7 +256,7 @@ public class XblClient : IXblClient
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.IntId }).ToArray()
         }).ToArray();
 
-        var task = ctx.AddTask("[white]Updating stats[/]", pages.Length);
+        var task = ctx.AddTask("[white]Updating stats[/]", pages.Length + 1);
 
         foreach (var page in pages)
         {
@@ -292,5 +271,6 @@ public class XblClient : IXblClient
             await statRepository.BulkUpdate(update);
             task.Increment(1);
         }
+        task.Increment(1);
     }
 }

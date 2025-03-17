@@ -2,10 +2,12 @@
 using AutoMapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Xbl.Client;
+using Xbl.Client.Io;
 using Xbl.Client.Models.Dbox;
 using Xbl.Data;
 
-namespace Xbl.Client.Io;
+namespace Xbl.Admin.Io;
 
 public class DboxClient : IDboxClient
 {
@@ -22,15 +24,15 @@ public class DboxClient : IDboxClient
         _console = console;
     }
 
-    public async Task<int> Update()
+    public async Task<int> GetBaseline()
     {
-        await Update<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=1");
-        await Update<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=14");
-        await Update<StoreProductCollection, StoreProduct>(DataTable.Store);
+        await GetBaseline<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=1");
+        await GetBaseline<MarketplaceProductCollection, MarketplaceProduct>(DataTable.Marketplace, "&product_type=14");
+        await GetBaseline<StoreProductCollection, StoreProduct>(DataTable.Store);
         return 0;
     }
 
-    private async Task Update<TC,TT>(string type, string ext = "") where TC : IProductCollection<TT>
+    private async Task GetBaseline<TC,TT>(string type, string ext = "") where TC : IProductCollection<TT>
     {
         var repo = await _dbox.GetRepository<Product>(type);
         var i = 0;
@@ -46,5 +48,10 @@ public class DboxClient : IDboxClient
             await repo.BulkInsert(products.Select(p => _mapper.Map<Product>(p)));
             i++;
         }
+    }
+
+    public async Task<IEnumerable<Product>> GetDelta()
+    {
+        throw new NotImplementedException();
     }
 }

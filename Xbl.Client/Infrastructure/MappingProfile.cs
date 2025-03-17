@@ -29,8 +29,8 @@ public class MappingProfile : Profile
             .ForMember(d => d.Category, o => o.MapFrom(s => s.First().Category))
             .ForMember(d => d.Versions, o => o.MapFrom((s, _, _, c) => MapStoreProductVersions(s, c)));
 
-        CreateMap<StoreProduct, ProductVersion>()
-            .ForMember(d => d.ReleaseDate, o => o.Ignore());
+        CreateMap<StoreProduct, ProductVersion>();
+            //.ForMember(d => d.ReleaseDate, o => o.Ignore());
 
         CreateMap<MarketplaceProduct, Product>()
             .ForMember(d => d.Title, o => o.MapFrom(s => s.DefaultTitle))

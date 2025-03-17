@@ -5,7 +5,6 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
-using static Dapper.SqlMapper;
 
 namespace Xbl.Client;
 

@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Headers;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
@@ -54,12 +53,6 @@ public class Program
                     var settings = s.GetRequiredService<Settings>();
                     c.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
                     c.BaseAddress = new Uri("https://xbl.io/api/v2/");
-                });
-
-        services.AddHttpClient<IDboxClient, DboxClient>(c =>
-                {
-                    c.BaseAddress = new Uri("https://dbox.tools/api/");
-                    c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 });
 
         return new XblTypeRegistrar(services);
