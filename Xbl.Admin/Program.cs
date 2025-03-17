@@ -6,6 +6,7 @@ using Spectre.Console.Cli;
 using Xbl.Admin.Io;
 using Xbl.Client;
 using Xbl.Client.Infrastructure;
+using Xbl.Data;
 using Xbl.Data.Extensions;
 
 namespace Xbl.Admin;
@@ -25,6 +26,7 @@ public class Program
 
         var services = new ServiceCollection();
         services.AddSingleton(config.CreateMapper())
+            .AddSingleton(new GlobalConfig { DataFolder = @$"..\..\..\..\Xbl.Client\bin\Debug\net8.0\{DataSource.DataFolder}" })
             .AddData(DataSource.Live, DataSource.Xbox360, DataSource.Dbox, DataSource.Xbl);
 
         services.AddHttpClient<IXblClient, XblClient>((s, c) =>

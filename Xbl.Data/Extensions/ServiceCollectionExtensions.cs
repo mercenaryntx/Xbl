@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
         MicroOrmConfig.SqlProvider = SqlProvider.SQLite;
         foreach (var database in databases)
         {
-            services.AddKeyedScoped<IDatabaseContext>(database, (_, _) => new DatabaseContext(database));
+            services.AddKeyedScoped<IDatabaseContext>(database, (s, _) => new DatabaseContext(database, s.GetRequiredService<GlobalConfig>()));
         }
         return services;
     }

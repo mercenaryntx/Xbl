@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Queries;
+using Xbl.Data;
 using Xbl.Data.Extensions;
 
 namespace Xbl.Client;
@@ -46,6 +47,7 @@ public class Program
             .AddSingleton<IKustoQueryExecutor, KustoQueryExecutor>()
             .AddSingleton<IExtendedHelp, ExtendedHelp>()
             .AddSingleton(config.CreateMapper())
+            .AddSingleton(new GlobalConfig { DataFolder = DataSource.DataFolder })
             .AddData(DataSource.Live, DataSource.Xbox360, DataSource.Dbox, DataSource.Xbl);
 
         services.AddHttpClient<IXblClient, XblClient>((s, c) =>

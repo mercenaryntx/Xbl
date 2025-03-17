@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using Dapper;
+using MicroOrm.Dapper.Repositories;
 using Microsoft.Data.Sqlite;
 using Xbl.Data.Entities;
 using Xbl.Data.Repositories;
@@ -25,9 +26,9 @@ public class DatabaseContext : IDatabaseContext, IDisposable
         _source = MEMORY;
     }
 
-    public DatabaseContext(string db)
+    public DatabaseContext(string db, GlobalConfig gc)
     {
-        _source = Path.Combine("data", db) + ".db";
+        _source = Path.Combine(gc.DataFolder, db) + ".db";
     }
 
     public async Task<IRepository<T>> GetRepository<T>(string tableName = null) where T : class, IHaveId
@@ -45,6 +46,19 @@ public class DatabaseContext : IDatabaseContext, IDisposable
     public async Task<IEnumerable<T>> Query<T>(string query, object param = null)
     {
         return IsVoid ? Array.Empty<T>() : await Connection.QueryAsync<T>(query, param);
+    }
+
+    public async Task<T> QuerySingle<T>(string query, object param = null)
+    {
+        return IsVoid ? default : await Connection.QueryFirstAsync<T>(query, param);
+    }
+
+    public IQueryable<T> AsQueryable<T>(string tableName = null) where T : class, IHaveId
+    {
+        var type = typeof(T);
+        tableName ??= type.Name.ToLower();
+        var dapperRepository = new DapperRepository<T>(Connection, new SqlGeneratorEx<T>(tableName));
+        return new DapperQueryable<T, T>(dapperRepository);
     }
 
     public Task EnsureTable(string tableName)

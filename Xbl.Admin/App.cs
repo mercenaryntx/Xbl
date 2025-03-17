@@ -8,7 +8,7 @@ using Xbl.Data;
 
 namespace Xbl.Admin;
 
-public sealed class App : AsyncCommand
+public sealed class App : AsyncCommand<Settings>
 {
     private readonly IDboxClient _dbox;
     private readonly IXblClient _xbl;
@@ -21,7 +21,7 @@ public sealed class App : AsyncCommand
         _dboxDb = dboxDb;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         if (!Directory.Exists(DataSource.DataFolder)) Directory.CreateDirectory(DataSource.DataFolder);
 

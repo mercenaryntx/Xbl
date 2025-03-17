@@ -2,8 +2,8 @@
 using AutoMapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
 using Xbl.Client;
-using Xbl.Client.Io;
 using Xbl.Client.Models.Dbox;
 using Xbl.Data;
 
@@ -14,14 +14,12 @@ public class DboxClient : IDboxClient
     private readonly HttpClient _client;
     private readonly IDatabaseContext _dbox;
     private readonly IMapper _mapper;
-    private readonly IConsole _console;
 
-    public DboxClient(HttpClient client, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, IMapper mapper, IConsole console)
+    public DboxClient(HttpClient client, [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox, IMapper mapper)
     {
         _client = client;
         _dbox = dbox.Mandatory(SqliteOpenMode.ReadWriteCreate);
         _mapper = mapper;
-        _console = console;
     }
 
     public async Task<int> GetBaseline()
@@ -40,7 +38,7 @@ public class DboxClient : IDboxClient
         var c = int.MaxValue;
         while (i * l < c)
         {
-            _console.MarkupLine($"Downloading {type}... {i * 100 * l / c}%");
+            AnsiConsole.MarkupLine($"Downloading {type}... {i * 100 * l / c}%");
             var s = await _client.GetStringAsync($"{type}/products?limit={l}&offset={i * l}{ext}");
             var data = JsonSerializer.Deserialize<TC>(s);
             c = data.Count;
@@ -52,6 +50,9 @@ public class DboxClient : IDboxClient
 
     public async Task<IEnumerable<Product>> GetDelta()
     {
-        throw new NotImplementedException();
+        var l = 10000;
+        var lastUpdated = await _dbox.QuerySingle<DateTime>($"SELECT UpdatedOn FROM {DataTable.Store} ORDER BY UpdatedOn DESC");
+        var s = await _client.GetStringAsync($"{DataTable.Store}/products?product_type=Game&order_by=revision_id&order_direction=desc&limit={l}&offset=0");
+        return null;
     }
 }

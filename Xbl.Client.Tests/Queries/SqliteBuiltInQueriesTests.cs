@@ -148,8 +148,9 @@ public class SqliteBuiltInQueriesTests
 
     private void Setup(int limit = 10)
     {
-        _liveDb = new DatabaseContext("live");
-        _x360Db = new DatabaseContext("x360");
+        var gc = new GlobalConfig { DataFolder = DataSource.DataFolder };
+        _liveDb = new DatabaseContext("live", gc);
+        _x360Db = new DatabaseContext("x360", gc);
 
         MicroOrmConfig.SqlProvider = SqlProvider.SQLite;
         var settings = new Settings { Limit = limit };

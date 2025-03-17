@@ -2,7 +2,6 @@
 using System.Text.Json;
 using Dapper;
 using MicroOrm.Dapper.Repositories;
-using MicroOrm.Dapper.Repositories.SqlGenerator;
 using Xbl.Data.Entities;
 
 namespace Xbl.Data.Repositories;
@@ -17,7 +16,7 @@ public abstract class DapperRepositoryBase<T> : IRepository where T : class, IHa
     {
         Connection = connection;
         _tableName = tableName;
-        InnerRepository = new DapperRepository<T>(connection, new SqlGenerator<T>());
+        InnerRepository = new DapperRepository<T>(connection, new SqlGeneratorEx<T>(tableName));
     }
 
     public IQueryable<T> AsQueryable()

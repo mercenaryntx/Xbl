@@ -12,6 +12,9 @@ public interface IDatabaseContext
 
     Task<IRepository<T>> GetRepository<T>(string tableName = null) where T : class, IHaveId;
     Task<IEnumerable<T>> Query<T>(string query, object param = null);
+    Task<T> QuerySingle<T>(string query, object param = null);
+    IQueryable<T> AsQueryable<T>(string tableName = null) where T : class, IHaveId;
+
     Task EnsureTable(string tableName);
     IDatabaseContext Mandatory(SqliteOpenMode mode = SqliteOpenMode.ReadOnly);
     IDatabaseContext Optional();

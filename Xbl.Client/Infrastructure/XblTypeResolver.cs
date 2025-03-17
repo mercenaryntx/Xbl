@@ -15,6 +15,6 @@ public class XblTypeResolver : ITypeResolver
 
     public object Resolve(Type type)
     {
-        return _services.GetService(type);
+        return _services.GetService(type!);
     }
 }
