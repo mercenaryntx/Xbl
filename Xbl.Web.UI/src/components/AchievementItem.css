@@ -1,0 +1,73 @@
+/* src/components/AchievementItem.css */
+h3 {
+	margin-top: 10px;
+}
+
+.title {
+  display: flex;
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  color: #fff;
+  
+	.game-image {
+	  width: 100px;
+	  height: 100px;
+	  margin-right: 10px;
+	}
+
+	.game-details {
+	  flex: 1;
+	}
+
+	.stat {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+
+	.nums,
+	.percentage {
+	  display: flex;
+	  flex: 1;
+	  flex-basis: 50%;
+	  align-items: center;
+	}
+
+	.achievements {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	}
+
+	.icon {
+		margin-right: 5px;
+	}
+
+	.stat {
+		margin-bottom: 5px;
+	}
+
+	.percentage {
+		justify-content: right;
+	}
+
+	.progress-bar {
+	  width: 100%;
+	  background-color: #444;
+	  height: 10px;
+	  border-radius: 5px;
+	  overflow: hidden;
+	}
+
+	.progress {
+	  height: 100%;
+	  background-color: #76c7c0;
+	}
+}
+
+.gamerscore {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-right: 15px;
+}

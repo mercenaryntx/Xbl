@@ -16,6 +16,7 @@ public interface IRepository<TType> : IRepository where TType : class, IHaveId
     Task BulkUpdate(IEnumerable<TType> items);
     Task Delete(TType item);
     Task<TType> Get<TKey>(TKey id, int partitionKey = 0);
+    Task<IEnumerable<TType>> GetPartition(int partitionKey);
     Task<IEnumerable<TType>> GetAll();
     IQueryable<TType> AsQueryable();
 }

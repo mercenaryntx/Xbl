@@ -18,7 +18,9 @@ public class MappingProfile : Profile
             .ForMember(d => d.Unlocked, o => o.MapFrom(s => s.ProgressState == "Achieved"))
             .ForMember(d => d.UnlockedOnline, o => o.MapFrom(s => s.ProgressState == "Achieved"))
             .ForMember(d => d.Platform, o => o.MapFrom(s => MapPlatform(s.Platforms)))
-            .ForMember(d => d.Gamerscore, o => o.MapFrom(s => MapGamerscore(s.Rewards)));
+            .ForMember(d => d.Gamerscore, o => o.MapFrom(s => MapGamerscore(s.Rewards)))
+            .ForMember(d => d.DisplayImage, o => o.MapFrom(s => s.MediaAssets.First().Url))
+            .ForMember(d => d.OriginalId, o => o.MapFrom(s => s.Id));
 
         CreateMap<IGrouping<string, StoreProduct>, Product>()
             .ForMember(d => d.Title, o => o.MapFrom(s => s.First().ProductGroupName ?? s.First().Title))

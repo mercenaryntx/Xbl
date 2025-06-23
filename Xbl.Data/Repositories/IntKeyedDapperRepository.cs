@@ -20,6 +20,11 @@ public class IntKeyedDapperRepository<T>(IDbConnection connection, string tableN
         throw new InvalidOperationException("Key can only be int here");
     }
 
+    public Task<IEnumerable<T>> GetPartition(int partitionKey)
+    {
+        return GetPartitionInner(partitionKey);
+    }
+
     protected override async Task<IEnumerable<IJsonEntity>> Query(string sql)
     {
         return await Connection.QueryAsync<IntKeyedJsonEntity>(sql);

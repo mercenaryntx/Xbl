@@ -28,8 +28,10 @@ public class Achievement : IHaveIntId, IHavePartitionKey
     public string Platform { get; set; }
     [JsonPropertyName("gamerscore")]
     public int Gamerscore { get; set; }
-    [JsonPropertyName("imageId")]
-    public int ImageId { get; set; }
+    [JsonPropertyName("displayImage")]
+    public string DisplayImage { get; set; }
+    [JsonPropertyName("originalId")]
+    public string OriginalId { get; set; }
     [JsonPropertyName("description")]
     public string Description { get; set; }
     [JsonPropertyName("lockedDescription")]

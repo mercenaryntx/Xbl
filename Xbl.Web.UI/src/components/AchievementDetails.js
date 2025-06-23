@@ -1,0 +1,79 @@
+// src/components/AchievementDetails.js
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import gamerscoreIcon from '../assets/images/gamerscore.svg';
+import trophyIcon from '../assets/images/icons8-trophy-16.png';
+import diamondIcon from '../assets/images/icons8-diamond-16.png';
+import lockedIcon from '../assets/images/locked.png';
+import './AchievementDetails.css';
+
+const AchievementDetails = () => {
+  const { titleId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const title = location.state?.game;
+  const [achievements, setAchievements] = useState([]);
+
+  useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const response = await fetch(`https://localhost:7238/Titles/${titleId}`);
+        const data = await response.json();
+        setAchievements(data.achievements);
+      } catch (error) {
+        console.error('Error fetching achievement details:', error);
+      }
+    };
+
+    fetchAchievements();
+  }, [titleId]);
+  
+  function resize(url) {
+	  return url + '&w=316';
+  }
+
+  return (
+	<div className="achievement-details">
+		<button onClick={() => navigate(-1)}>Back</button>
+		{title &&
+		<div className="title">
+			<img src={title.displayImage} alt={title.name} className="game-image" />
+			<div className="game-details">
+				<h3>{title.name}</h3>
+				<div className="stat">
+					<span className="nums">
+						<span className="gamerscore"><img src={gamerscoreIcon} className="icon" /> {title.currentGamerscore}/{title.totalGamerscore}</span>
+						<span className="achievements"><img src={trophyIcon} className="icon" /> {title.currentAchievements}</span>
+					</span>
+					<span className="percentage">{title.progressPercentage.toFixed(2)}%</span>
+				</div>
+				<div className="progress-bar">
+					<div className="progress" style={{ width: `${title.progressPercentage}%` }}></div>
+				</div>
+			</div>
+		</div>
+		}
+		<div className="achievement-wrap grid-container">
+		{achievements.map((achievement) => (
+		<div key={achievement.id} className="achievement-item grid-row-item-d4-t8-m4">
+			<div className="achievement-container">
+			{achievement.isUnlocked &&
+			<img src={resize(achievement.displayImage)} alt={achievement.title} className="achievement-image" />
+			}
+			{!achievement.isUnlocked &&
+			<img src={lockedIcon} alt={achievement.title} className="achievement-image" />
+			}
+			<h3 className={achievement.isSecret.toString()}>{achievement.name}</h3>
+			<div className="achievement-info">
+				<span className="gamerscore">{achievement.isRare && <img src={diamondIcon} className="icon" /> }<img src={gamerscoreIcon} className="icon" /> {achievement.gamerscore}</span>
+				<p className="percentage"> {achievement.rarityPercentage}%</p>
+			</div>
+			</div>
+		</div>
+		))}
+		</div>
+	</div>
+  );
+};
+
+export default AchievementDetails;

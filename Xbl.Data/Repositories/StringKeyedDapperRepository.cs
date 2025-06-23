@@ -20,6 +20,11 @@ public class StringKeyedRepository<T>(IDbConnection connection, string tableName
         throw new InvalidOperationException("Key can only be string here");
     }
 
+    public Task<IEnumerable<T>> GetPartition(int partitionKey)
+    {
+        return GetPartitionInner(partitionKey);
+    }
+
     protected override async Task<IEnumerable<IJsonEntity>> Query(string sql)
     {
         return await Connection.QueryAsync<StringKeyedJsonEntity>(sql);

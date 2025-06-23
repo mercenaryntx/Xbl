@@ -79,6 +79,12 @@ public abstract class DapperRepositoryBase<T> : IRepository where T : class, IHa
         return await Connection.QueryFirstOrDefaultAsync<TContainer>(sql, key);
     }
 
+    protected async Task<IEnumerable<T>> GetPartitionInner(int partitionKey)
+    {
+        var items = await Query($"SELECT Data FROM {_tableName} WHERE PartitionKey = {partitionKey}");
+        return items.Select(i => JsonSerializer.Deserialize<T>(i.Data));
+    }
+
     protected abstract IJsonEntity GetContainer(T item);
     protected abstract Task<IEnumerable<IJsonEntity>> Query(string sql);
 

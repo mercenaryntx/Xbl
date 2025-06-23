@@ -1,0 +1,39 @@
+/* src/components/AchievementsList.css */
+.achievements-list {
+  background-color: #1e1e1e;
+  padding: 20px;
+}
+
+.order-selection {
+  margin-bottom: 20px;
+  color: #fff;
+  text-align: right;
+}
+
+.order-selection label {
+  margin-right: 10px;
+}
+
+.order-selection select {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+#update {
+  background-color: #008746;
+  color: #fff;
+  padding: 5px;
+  border-radius: 5px;
+  border: 0px;
+  width: 100px;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-right: 15px;
+}
+
+#update:hover {
+  background-color: #007738;
+}
