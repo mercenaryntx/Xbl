@@ -1,0 +1,78 @@
+.time-display 
+{
+	background-color: #404040;
+	display: flex;
+	justify-content: space-between;
+	color: #ffffff;
+	padding: 0px;
+	border-radius: 4px;
+	text-align: center;
+	align-items: center;
+	font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+	
+	.value-container {
+		justify-content: center;
+		align-items: baseline;
+		display: flex;
+		text-wrap-mode: nowrap;
+		margin-right: 24px;
+		margin-left: 24px;
+		padding-top: 3px;
+		
+		.value {
+			font-weight: bold;
+		}
+		
+		.days {
+			color: gold;
+		}
+		
+		.hours {
+			color: #D4AF37;
+		}
+		
+		.minutes {
+			color: #B48F07;
+		}
+		
+		.days .value:not(:empty)::after {
+			font-weight: normal;
+			content: 'd';
+			margin-right: 8px;
+		}
+
+		.hours .value:not(:empty)::after {
+			font-weight: normal;
+			content: 'h';
+			margin-right: 8px;
+		}
+		
+		.minutes .value:not(:empty)::after {
+			font-weight: normal;
+			content: 'm';
+		}
+	}
+	
+	.toggle-container button.MuiToggleButton-root {
+		color: #ffffff;
+		background-color: #008746;
+		padding: 5px;
+		width: 36.5px;
+		font-weight: bold;
+	}
+	
+	.toggle-container button[aria-pressed="true"] {
+		background-color: #007738;
+	}
+	
+	.toggle-container button.MuiToggleButton-firstButton {
+		border-top-left-radius: 5px;
+		border-bottom-left-radius: 5px;
+	}
+	
+	.toggle-container button.MuiToggleButton-lastButton {
+		border-top-right-radius: 5px;
+		border-bottom-right-radius: 5px;
+	}
+
+}

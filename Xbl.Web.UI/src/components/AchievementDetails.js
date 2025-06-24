@@ -1,10 +1,12 @@
 // src/components/AchievementDetails.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import TimeDisplay from './TimeDisplay';
 import gamerscoreIcon from '../assets/images/gamerscore.svg';
 import trophyIcon from '../assets/images/icons8-trophy-16.png';
 import diamondIcon from '../assets/images/icons8-diamond-16.png';
 import lockedIcon from '../assets/images/locked.png';
+import placeholderIcon from '../assets/images/placeholder.png';
 import './AchievementDetails.css';
 
 const AchievementDetails = () => {
@@ -12,6 +14,7 @@ const AchievementDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const title = location.state?.game;
+  const [minutes, setMinutes] = useState(null);
   const [achievements, setAchievements] = useState([]);
 
   useEffect(() => {
@@ -20,6 +23,7 @@ const AchievementDetails = () => {
         const response = await fetch(`https://localhost:7238/Titles/${titleId}`);
         const data = await response.json();
         setAchievements(data.achievements);
+		setMinutes(data.minutes);
       } catch (error) {
         console.error('Error fetching achievement details:', error);
       }
@@ -29,17 +33,21 @@ const AchievementDetails = () => {
   }, [titleId]);
   
   function resize(url) {
-	  return url + '&w=316';
+	  if (url) return url + '&w=400';
+	  return placeholderIcon;
   }
 
   return (
 	<div className="achievement-details">
-		<button onClick={() => navigate(-1)}>Back</button>
 		{title &&
 		<div className="title">
+			<button id="back" onClick={() => navigate(-1)}>&#129168;</button>
 			<img src={title.displayImage} alt={title.name} className="game-image" />
 			<div className="game-details">
-				<h3>{title.name}</h3>
+				<div className="game-title">
+					<h3>{title.name}</h3>
+						{minutes > 0 && <TimeDisplay value={minutes}/>}
+				</div>
 				<div className="stat">
 					<span className="nums">
 						<span className="gamerscore"><img src={gamerscoreIcon} className="icon" /> {title.currentGamerscore}/{title.totalGamerscore}</span>

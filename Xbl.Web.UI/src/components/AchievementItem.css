@@ -1,8 +1,4 @@
 /* src/components/AchievementItem.css */
-h3 {
-	margin-top: 10px;
-}
-
 .title {
   display: flex;
   padding: 10px;
@@ -13,6 +9,18 @@ h3 {
 	  width: 100px;
 	  height: 100px;
 	  margin-right: 10px;
+	}
+	
+	.game-title {
+		margin-top: 10px;
+		margin-bottom: 10px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		
+		h3 {
+			margin: 0px;
+		}
 	}
 
 	.game-details {
@@ -53,15 +61,15 @@ h3 {
 
 	.progress-bar {
 	  width: 100%;
-	  background-color: #444;
-	  height: 10px;
+	  background-color: #333;
+	  height: 4px;
 	  border-radius: 5px;
 	  overflow: hidden;
 	}
 
 	.progress {
 	  height: 100%;
-	  background-color: #76c7c0;
+	  background-color: #008746;
 	}
 }
 
@@ -70,4 +78,23 @@ h3 {
   justify-content: space-between;
   align-items: center;
   margin-right: 15px;
+}
+
+@media (max-width: 767px) {
+	.title {
+		.game-title {
+			flex-direction: column;
+			margin-top: 0px!important;
+		}
+		
+		.game-title h3 {
+			align-self: flex-start;
+			margin-bottom: 5px!important;
+		}
+		
+		.game-title .time-display {
+			align-self: flex-end;
+			justify-content: flex-end;
+		}
+	}
 }

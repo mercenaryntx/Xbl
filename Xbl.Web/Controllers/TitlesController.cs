@@ -38,9 +38,14 @@ public class TitlesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IEnumerable<Title>> Get([FromQuery] string orderBy = "lastPlayed", [FromQuery] string orderDir = "DESC", [FromQuery] int page = 0)
+    public async Task<IEnumerable<Title>> Get(
+        [FromQuery] string title = "", 
+        [FromQuery] string orderBy = "lastPlayed", 
+        [FromQuery] string orderDir = "DESC", 
+        [FromQuery] int page = 0)
     {
-        var query = $"{TitleSelector} ORDER BY json_extract(Data, @OrderBy) {orderDir} LIMIT @Limit OFFSET @Offset";
+        var where = !string.IsNullOrEmpty(title) ? "WHERE json_extract(Data, '$.name') like @Title" : "";
+        var query = $"{TitleSelector} {where} ORDER BY json_extract(Data, @OrderBy) {orderDir} LIMIT @Limit OFFSET @Offset";
         const int limit = 50;
         orderBy = orderBy switch
         {
@@ -49,7 +54,7 @@ public class TitlesController : ControllerBase
             "progress" => "$.achievement.progressPercentage",
             _ => "$.titleHistory.lastTimePlayed"
         };
-        return await _live.Query<Title>(query, new { Limit = limit, Offset = page * limit, OrderBy = orderBy });
+        return await _live.Query<Title>(query, new { Limit = limit, Offset = page * limit, OrderBy = orderBy, Title = $"%{title}%" });
     }
 
     [HttpGet("{titleId}")]
@@ -69,7 +74,7 @@ public class TitlesController : ControllerBase
         var s = st.Result;
 
         t.Achievements = _mapper.Map<Achievement[]>(a.OrderByDescending(aa => aa.TimeUnlocked));
-        t.Minutes = s.IntValue;
+        t.Minutes = s?.IntValue;
         return t;
     }
 }
