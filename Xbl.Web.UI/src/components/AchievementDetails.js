@@ -10,7 +10,7 @@ import placeholderIcon from '../assets/images/placeholder.png';
 import './AchievementDetails.css';
 
 const AchievementDetails = () => {
-  const { titleId } = useParams();
+  const { source, titleId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const title = location.state?.game;
@@ -20,7 +20,7 @@ const AchievementDetails = () => {
   useEffect(() => {
     const fetchAchievements = async () => {
       try {
-        const response = await fetch(`https://localhost:7238/Titles/${titleId}`);
+        const response = await fetch(`https://localhost:7238/Titles/${source}/${titleId}`);
         const data = await response.json();
         setAchievements(data.achievements);
 		setMinutes(data.minutes);
@@ -33,7 +33,10 @@ const AchievementDetails = () => {
   }, [titleId]);
   
   function resize(url) {
-	  if (url) return url + '&w=400';
+	  if (url) {
+		  if (source == 'live') return url + '&w=400';
+		  return url;
+	  }
 	  return placeholderIcon;
   }
 
@@ -66,7 +69,7 @@ const AchievementDetails = () => {
 		<div key={achievement.id} className="achievement-item grid-row-item-d4-t8-m4">
 			<div className="achievement-container">
 			{achievement.isUnlocked &&
-			<img src={resize(achievement.displayImage)} alt={achievement.title} className="achievement-image" />
+			<img src={resize(achievement.displayImage)} alt={achievement.title} className={source} />
 			}
 			{!achievement.isUnlocked &&
 			<img src={lockedIcon} alt={achievement.title} className="achievement-image" />

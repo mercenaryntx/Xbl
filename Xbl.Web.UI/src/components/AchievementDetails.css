@@ -35,10 +35,16 @@ background-color: transparent;
 		background-color: #404040;
 	}
 	
-	.achievement-image {
+	img.live {
 		width: 100%;
 		aspect-ratio: 316 / 178;
 		object-fit: cover;
+	}
+	
+	img.x360 {
+		width: 100%;
+		aspect-ratio: 316 / 178;
+		object-fit: contain;
 	}
 	
 	.achievement-info {

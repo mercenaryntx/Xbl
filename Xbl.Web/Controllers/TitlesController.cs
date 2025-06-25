@@ -1,7 +1,6 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Xbl.Client;
-using Xbl.Client.Models.Kql;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Data;
 using Xbl.Web.Models;
@@ -12,6 +11,7 @@ namespace Xbl.Web.Controllers;
 [Route("[controller]")]
 public class TitlesController : ControllerBase
 {
+    private readonly IDatabaseContext _x360;
     private readonly IMapper _mapper;
     private readonly ILogger<TitlesController> _logger;
     private readonly IDatabaseContext _live;
@@ -30,15 +30,17 @@ public class TitlesController : ControllerBase
                                          FROM title
                                          """;
 
-    public TitlesController([FromKeyedServices(DataSource.Live)] IDatabaseContext live, IMapper mapper, ILogger<TitlesController> logger)
+    public TitlesController([FromKeyedServices(DataSource.Live)] IDatabaseContext live, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360, IMapper mapper, ILogger<TitlesController> logger)
     {
         _mapper = mapper;
         _logger = logger;
         _live = live.Mandatory();
+        _x360 = x360.Mandatory();
     }
 
-    [HttpGet]
+    [HttpGet("{source}")]
     public async Task<IEnumerable<Title>> Get(
+        string source,
         [FromQuery] string title = "", 
         [FromQuery] string orderBy = "lastPlayed", 
         [FromQuery] string orderDir = "DESC", 
@@ -54,27 +56,43 @@ public class TitlesController : ControllerBase
             "progress" => "$.achievement.progressPercentage",
             _ => "$.titleHistory.lastTimePlayed"
         };
-        return await _live.Query<Title>(query, new { Limit = limit, Offset = page * limit, OrderBy = orderBy, Title = $"%{title}%" });
+        var p = new {Limit = limit, Offset = page * limit, OrderBy = orderBy, Title = $"%{title}%"};
+        return source switch
+        {
+            "live" => await _live.Query<Title>(query, p),
+            "x360" => await _x360.Query<Title>(query, p),
+            _ => []
+        };
     }
 
-    [HttpGet("{titleId}")]
-    public async Task<TitleDetail> Get(int titleId)
+    [HttpGet("{source}/{titleId}")]
+    public async Task<TitleDetail> Get(string source, int titleId)
     {
-        var achievements = await _live.GetRepository<Client.Models.Xbl.Achievements.Achievement>();
-        var stats = await _live.GetRepository<Stat>();
+        var repo = source switch
+        {
+            "live" => _live,
+            "x360" => _x360,
+            _ => throw new InvalidOperationException()
+        };
 
-        var tt = _live.Query<TitleDetail>($"{TitleSelector} WHERE Id = {titleId}");
+        var achievements = await repo.GetRepository<Client.Models.Xbl.Achievements.Achievement>();
+
+        var tt = repo.Query<TitleDetail>($"{TitleSelector} WHERE Id = {titleId}");
         var at = achievements.GetPartition(titleId);
-        var st = stats.Get(titleId);
 
-        await Task.WhenAll(tt, at, st);
+        await Task.WhenAll(tt, at);
 
         var t = tt.Result.First();
         var a = at.Result;
-        var s = st.Result;
 
         t.Achievements = _mapper.Map<Achievement[]>(a.OrderByDescending(aa => aa.TimeUnlocked));
-        t.Minutes = s?.IntValue;
+
+        if (source == "live")
+        {
+            var stats = await repo.GetRepository<Stat>();
+            var s = await stats.Get(titleId);
+            t.Minutes = s?.IntValue;
+        }
         return t;
     }
 }

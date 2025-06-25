@@ -5,11 +5,11 @@ import './AchievementItem.css';
 import gamerscoreIcon from '../assets/images/gamerscore.svg';
 import trophyIcon from '../assets/images/icons8-trophy-16.png';
 
-const AchievementItem = ({ game }) => {
+const AchievementItem = ({ game, source }) => {
   const { displayImage, name, titleId, currentGamerscore, totalGamerscore, currentAchievements, progressPercentage } = game;
   const navigate = useNavigate();
   const handleClick = () => {
-    navigate(`/details/${titleId}`, { state: { game }});
+    navigate(`/details/${source}/${titleId}`, { state: { game }});
   };
 
   return (

@@ -56,7 +56,6 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 foreach (var (fileEntry, game) in profile.Games)
                 {
                     game.Parse();
-
                     var achievements = GetAchievementsFromGameFile(game, out var hadBug);
                     if (hadBug) bugs.Add($"[#f9fba5]Warning:[/] {game.Title} ([grey]{fileEntry.Name}[/]) is corrupted. Invalid entries were omitted.");
 
@@ -112,7 +111,12 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                         ProgressPercentage = g.TotalGamerScore > 0 ? 100 * g.GamerscoreUnlocked / g.TotalGamerScore : 0,
                         TotalGamerscore = g.TotalGamerScore,
                         TotalAchievements = g.AchievementCount
-                    }
+                    },
+                    TitleHistory = new TitleHistory
+                    {
+                        LastTimePlayed = g.LastPlayed,
+                    },
+                    DisplayImage = $"{g.TitleCode}.png"
                 };
 
                 return t;
@@ -140,7 +144,8 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                     IsSecret = a.IsSecret,
                     Description = a.UnlockedDescription,
                     LockedDescription = a.LockedDescription,
-                    Gamerscore = a.Gamerscore
+                    Gamerscore = a.Gamerscore,
+                    DisplayImage = $"{game.TitleId}.{a.ImageId}.png"
                 };
             }
             catch
@@ -149,6 +154,11 @@ public class Xbox360ProfileImporter : IXbox360ProfileImporter
                 return null;
             }
         }).Where(a => a != null);
+
+        foreach (var imageEntry in game.Images)
+        {
+            File.WriteAllBytes(Path.Combine(DataSource.DataFolder, "img", $"{game.TitleId}.{imageEntry.Entry.Id}.png"), imageEntry.ImageData);
+        }
 
         hadBug = bug;
         return achievements;

@@ -10,6 +10,7 @@ const AchievementsList = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [order, setOrder] = useState('lastPlayed-desc');
+  const [source, setSource] = useState('live');
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
@@ -17,7 +18,7 @@ const AchievementsList = () => {
 
   useEffect(() => {
     fetchMoreData();
-  }, [order, searchQuery]);
+  }, [order, source, searchQuery]);
   
   function replaceOrderPostfix(str) {
     return str.replace(/(.*)-(asc|desc)$/, (match, p1, p2) => {
@@ -27,7 +28,7 @@ const AchievementsList = () => {
 
   const fetchMoreData = async () => {
 	const o = replaceOrderPostfix(order);
-    const response = await fetch(`https://localhost:7238/Titles?page=${page}&orderBy=${o}&title=${searchQuery}`);
+    const response = await fetch(`https://localhost:7238/Titles/${source}?page=${page}&orderBy=${o}&title=${searchQuery}`);
     const data = await response.json();
     setGames([...games, ...data]);
     setPage(page + 1);
@@ -41,7 +42,13 @@ const AchievementsList = () => {
     setGames([]);
     setPage(0);
     setHasMore(true);
-	//fetchMoreData();
+  };
+
+  const handleSourceChange = (e) => {
+    setSource(e.target.value);
+    setGames([]);
+    setPage(0);
+    setHasMore(true);
   };
 
   const handleSearchToggle = () => {
@@ -95,6 +102,10 @@ const AchievementsList = () => {
 			<option value="progress-desc">Most completed</option>
 			<option value="progress-asc">Least completed</option>
 		</select>
+		<select id="source" value={source} onChange={handleSourceChange}>
+			<option value="live">Live</option>
+			<option value="x360">Xbox 360</option>
+		</select>
 	</div>
 	<InfiniteScroll
 		dataLength={games.length}
@@ -104,7 +115,7 @@ const AchievementsList = () => {
 		endMessage={<p>No more games</p>}
 	>
 	  {games.map((game) => (
-		<AchievementItem key={game.titleId} game={game} />
+		<AchievementItem key={game.titleId} game={game} source={source} />
 	  ))}
 	</InfiniteScroll>
 	</div>
