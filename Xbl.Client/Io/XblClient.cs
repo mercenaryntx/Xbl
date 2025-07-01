@@ -81,7 +81,7 @@ public class XblClient : IXblClient
         }
         catch (HttpRequestException ex)
         {
-            Console.WriteLine();
+            _console.MarkupLine(string.Empty);
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
         }
     }

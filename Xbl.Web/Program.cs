@@ -1,22 +1,45 @@
 using AutoMapper;
 using Xbl.Client;
+using Xbl.Client.Io;
 using Xbl.Data;
 using Xbl.Data.Extensions;
+using Xbl.Web;
 
 var builder = WebApplication.CreateBuilder(args);
-var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
+var config = new MapperConfiguration(cfg =>
+{
+    cfg.AddProfile<MappingProfile>();
+    cfg.AddProfile<Xbl.Client.Infrastructure.MappingProfile>();
+});
 
-// Add services to the container.
-builder.Services.AddSingleton(config.CreateMapper())
-    .AddSingleton(sp => new GlobalConfig { DataFolder = sp.GetRequiredService<IConfiguration>().GetValue<string>("DataFolder") })
+builder.Services
+    .AddSingleton(sp =>
+    {
+        var c = sp.GetRequiredService<IConfiguration>();
+        var s = new Settings();
+        c.GetSection("Settings").Bind(s);
+        return s;
+    })
+    .AddSingleton<IConsole, NullConsole>()
+    .AddSingleton(config.CreateMapper())
+    .AddSingleton(sp => new GlobalConfig
+    {
+        DataFolder = sp.GetRequiredService<IConfiguration>().GetValue<string>("DataFolder")
+    })
     .AddData(DataSource.Live, DataSource.Xbox360, DataSource.Dbox, DataSource.Xbl)
-    .AddControllers();
+    .AddHttpClient<IXblClient, XblClient>((s, c) =>
+    {
+        var settings = s.GetRequiredService<Settings>();
+        c.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
+        c.BaseAddress = new Uri("https://xbl.io/api/v2/");
+    });
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

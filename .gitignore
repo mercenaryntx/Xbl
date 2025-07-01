@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 /Xbl.Client/Properties/launchSettings.json
 /Xbl.Admin/Properties/launchSettings.json
+/Xbl.Web/Properties/launchSettings.json

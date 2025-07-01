@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Xbl.Client;
+using Xbl.Client.Io;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Data;
 using Xbl.Web.Models;
@@ -13,6 +14,7 @@ public class TitlesController : ControllerBase
 {
     private readonly IDatabaseContext _x360;
     private readonly IMapper _mapper;
+    private readonly IXblClient _xbl;
     private readonly ILogger<TitlesController> _logger;
     private readonly IDatabaseContext _live;
 
@@ -30,9 +32,15 @@ public class TitlesController : ControllerBase
                                          FROM title
                                          """;
 
-    public TitlesController([FromKeyedServices(DataSource.Live)] IDatabaseContext live, [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360, IMapper mapper, ILogger<TitlesController> logger)
+    public TitlesController(
+        [FromKeyedServices(DataSource.Live)] IDatabaseContext live, 
+        [FromKeyedServices(DataSource.Xbox360)] IDatabaseContext x360, 
+        IMapper mapper,
+        IXblClient xbl,
+        ILogger<TitlesController> logger)
     {
         _mapper = mapper;
+        _xbl = xbl;
         _logger = logger;
         _live = live.Mandatory();
         _x360 = x360.Mandatory();
@@ -94,5 +102,11 @@ public class TitlesController : ControllerBase
             t.Minutes = s?.IntValue;
         }
         return t;
+    }
+
+    [HttpPost("update")]
+    public async Task Update()
+    {
+        await _xbl.Update();
     }
 }
