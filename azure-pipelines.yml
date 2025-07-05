@@ -21,25 +21,13 @@ steps:
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
 - task: DotNetCoreCLI@2
-  displayName: 'Restore Xbl.Web'
-  inputs:
-    command: 'restore'
-    projects: 'Xbl.Web/Xbl.Web.csproj'
-
-- task: DotNetCoreCLI@2
-  displayName: 'Build Xbl.Web'
-  inputs:
-    command: 'build'
-    projects: 'Xbl.Web/Xbl.Web.csproj'
-    arguments: '--configuration $(buildConfiguration)'
-
-- task: DotNetCoreCLI@2
   displayName: 'Publish Xbl.Web'
   inputs:
     command: 'publish'
     publishWebProjects: false
     projects: 'Xbl.Web/Xbl.Web.csproj'
     arguments: '--configuration $(buildConfiguration) --output $(outputDir)'
+    zipAfterPublish: false
 
 # Build React app
 - task: NodeTool@0
@@ -51,17 +39,18 @@ steps:
   inputs:
     command: 'install'
     workingDir: 'Xbl.Web.UI'
-  displayName: 'npm install'
+  displayName: 'Restore Xbl.Web.UI'
 
-- task: Npm@1
+- task: Npm@2
   inputs:
     command: 'custom'
     workingDir: 'Xbl.Web.UI'
     customCommand: 'run build'
+  displayName: 'Publish Xbl.Web.UI'  
 
 # Copy React build output to wwwroot of published .NET app
 - task: CopyFiles@2
-  displayName: 'Copy React build to wwwroot'
+  displayName: 'Publish Xbl.Web.UI'
   inputs:
     SourceFolder: '$(reactBuildDir)'
     Contents: '**'
@@ -81,6 +70,7 @@ steps:
   artifact: 'drop'
 
 - task: AzureWebApp@1
+  displayName: 'Deploy to Azure Web App'
   inputs:
     azureSubscription: 'Visual Studio Enterprise(edecda7b-57b5-41b5-845a-33e9333d4186)'
     appType: 'webApp'
