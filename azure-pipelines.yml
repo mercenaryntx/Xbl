@@ -68,12 +68,12 @@ steps:
 - publish: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
   displayName: 'Publish Artifact'
   artifact: 'drop'
-
-- task: AzureWebApp@1
+    
+- task: AzureRmWebAppDeployment@5
   displayName: 'Deploy to Azure Web App'
   inputs:
+    ConnectionType: 'AzureRM'
     azureSubscription: 'Visual Studio Enterprise(edecda7b-57b5-41b5-845a-33e9333d4186)'
     appType: 'webApp'
-    appName: 'xbl'
-    package: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
-    deploymentMethod: 'auto'
+    WebAppName: 'xbl'
+    packageForLinux: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
