@@ -24,9 +24,16 @@
   justify-content: flex-end;
   align-items: center;  
   padding: 0px 10px;
+  flex-wrap: wrap;
   
   input {
 	  margin-right:1px;
+  }
+  
+  .break {
+	flex-basis: 100%;
+	height: 10px;
+	display: none;
   }
 }
 
@@ -86,4 +93,15 @@
 
 .d-none {
 	display: none;
+}
+
+@media (max-width: 360px) {
+	.order-selection .break {
+		display: block;
+	}
+	
+	#update {
+		width: 80px;
+		margin-right: 0px;
+	}
 }

@@ -98,3 +98,37 @@
 		}
 	}
 }
+
+@media (max-width: 360px) {
+	.title {
+		.game-image {
+			width: 65px;
+			height: 65px;
+			margin-right: 10px;
+		}
+
+		.game-title {
+			flex-direction: column;
+			margin-top: 0px!important;
+			
+			h3 {
+				margin-top: 0px;
+				font-size: 15px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				width: 220px;
+			}
+		}
+		
+		.game-title h3 {
+			align-self: flex-start;
+			margin-bottom: 5px!important;
+		}
+		
+		.game-title .time-display {
+			align-self: flex-end;
+			justify-content: flex-end;
+		}
+	}
+}

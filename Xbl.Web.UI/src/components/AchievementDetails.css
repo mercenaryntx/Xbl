@@ -136,3 +136,37 @@ background-color: transparent;
 		grid-column: span 4;
 	}
 }
+
+@media (max-width: 360px) {
+	.grid-container {
+		grid-template-columns: repeat(4, 1fr);
+	}
+	.grid-row-item-full {
+		grid-column: span 4;
+	}
+	.grid-row-item-d4-t8-m4 {
+		grid-column: span 4;
+	}
+	.grid-row-item-d4-t4-m4 {
+		grid-column: span 4;
+	}
+	.grid-row-item-d3-t4-m4 {
+		grid-column: span 4;
+	}
+	
+	.achievement-details {
+		.title {
+			margin-bottom: 40px;
+		}
+		
+		.title #back {
+			display: none;
+		}
+		
+		.time-display {
+			position: absolute;
+			top: 115px;
+			right: 20px;
+		}
+	}
+}

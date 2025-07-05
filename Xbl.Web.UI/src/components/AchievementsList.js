@@ -120,6 +120,7 @@ const AchievementsList = () => {
 					<img src={searchIcon} aria-label="search"></img>
 				</button>
 				<button id="update" onClick={update}>Update</button>
+				<div className="break"></div>
 				<select id="order" value={order} onChange={handleOrderChange}>
 					<option value="lastPlayed-desc">Recently played</option>
 					<option value="name-asc">A-Z</option>

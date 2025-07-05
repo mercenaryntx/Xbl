@@ -12,11 +12,17 @@ const AchievementItem = ({ game, source }) => {
     navigate(`/details/${source}/${titleId}`, { state: { game }});
   };
 
+  function resize(url) {
+	  return url + '?w=100';
+  }
+
   return (
     <div className="title" onClick={handleClick}>
-      <img src={displayImage} alt={name} className="game-image" />
+      <img src={resize(displayImage)} alt={name} className="game-image" />
       <div className="game-details">
-        <h3>{name}</h3>
+		<div className="game-title">
+			<h3>{name}</h3>
+		</div>	
         <div className="stat">
 		  <span className="nums">
 			  <span className="gamerscore"><img src={gamerscoreIcon} className="icon" /> {currentGamerscore}/{totalGamerscore}</span>

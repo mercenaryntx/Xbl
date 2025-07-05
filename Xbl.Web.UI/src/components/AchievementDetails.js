@@ -51,7 +51,7 @@ const AchievementDetails = () => {
 			<div className="game-details">
 				<div className="game-title">
 					<h3>{title.name}</h3>
-						{minutes > 0 && <TimeDisplay value={minutes}/>}
+					{minutes > 0 && <TimeDisplay value={minutes}/>}
 				</div>
 				<div className="stat">
 					<span className="nums">
