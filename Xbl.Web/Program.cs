@@ -49,6 +49,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors(c => c.AllowAnyOrigin());
 
+app.UseRouting();
 app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
