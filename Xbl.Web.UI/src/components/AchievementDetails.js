@@ -9,6 +9,8 @@ import lockedIcon from '../assets/images/locked.png';
 import placeholderIcon from '../assets/images/placeholder.png';
 import './AchievementDetails.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const AchievementDetails = () => {
   const { source, titleId } = useParams();
   const navigate = useNavigate();
@@ -20,7 +22,7 @@ const AchievementDetails = () => {
   useEffect(() => {
     const fetchAchievements = async () => {
       try {
-        const response = await fetch(`https://localhost:7238/Titles/${source}/${titleId}`);
+        const response = await fetch(`${API_BASE_URL}/Titles/${source}/${titleId}`);
         const data = await response.json();
         setAchievements(data.achievements);
 		setMinutes(data.minutes);
