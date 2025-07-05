@@ -41,7 +41,7 @@ steps:
     workingDir: 'Xbl.Web.UI'
   displayName: 'Restore Xbl.Web.UI'
 
-- task: Npm@2
+- task: Npm@1
   inputs:
     command: 'custom'
     workingDir: 'Xbl.Web.UI'
