@@ -45,8 +45,7 @@ steps:
 - task: NodeTool@0
   displayName: 'Install Node.js'
   inputs:
-    versionSpec: '18.x'
-
+    versionSpec: '16.14.2'
 - script: |
     cd Xbl.Web.UI
     npm install
