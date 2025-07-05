@@ -50,8 +50,8 @@ app.UseHttpsRedirection();
 app.UseCors(c => c.AllowAnyOrigin());
 
 app.UseAuthorization();
-app.UseStaticFiles();
 app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
 
 app.Run();
