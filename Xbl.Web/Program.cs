@@ -52,6 +52,11 @@ app.UseCors(c => c.AllowAnyOrigin());
 app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapControllers();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+    // Add this for SPA fallback
+    endpoints.MapFallbackToFile("index.html");
+});
 
 app.Run();
