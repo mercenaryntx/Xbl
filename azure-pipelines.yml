@@ -46,11 +46,18 @@ steps:
   displayName: 'Install Node.js'
   inputs:
     versionSpec: '20.x'
-- script: |
-    cd Xbl.Web.UI
-    npm install
-    npm run build
-  displayName: 'Build React App (Xbl.Web.UI)'
+
+- task: Npm@1
+  inputs:
+    command: 'install'
+    workingDir: 'Xbl.Web.UI'
+  displayName: 'npm install'
+
+- task: Npm@1
+  inputs:
+    command: 'custom'
+    workingDir: 'Xbl.Web.UI'
+    customCommand: 'run build'
 
 # Copy React build output to wwwroot of published .NET app
 - task: CopyFiles@2
@@ -68,6 +75,7 @@ steps:
     archiveType: 'zip'
     archiveFile: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
     replaceExistingArchive: true
+
 - publish: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
   displayName: 'Publish Artifact'
   artifact: 'drop'
