@@ -33,7 +33,7 @@ const AchievementsList = () => {
 
 	async function fetchPage() {
 		const o = replaceOrderPostfix(order);
-		const response = await fetch(`${API_BASE_URL}/Titles/${source}?page=0&orderBy=${o}&title=${searchQuery}`);
+		const response = await fetch(`${API_BASE_URL}/Titles/${source}?page=${page}&orderBy=${o}&title=${searchQuery}`);
 		return await response.json();
 	}
 
