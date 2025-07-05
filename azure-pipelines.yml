@@ -9,7 +9,7 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  outputDir: '$(Build.ArtifactStagingDirectory)/publish'
+  outputDir: '$(Build.ArtifactStagingDirectory)/publish/Xbl.Web'
   reactBuildDir: 'Xbl.Web.UI/build'
 
 steps:
@@ -26,7 +26,7 @@ steps:
     command: 'publish'
     publishWebProjects: false
     projects: 'Xbl.Web/Xbl.Web.csproj'
-    arguments: '--configuration $(buildConfiguration) --output $(outputDir)'
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
     zipAfterPublish: false
 
 # Build React app
@@ -46,7 +46,7 @@ steps:
     command: 'custom'
     workingDir: 'Xbl.Web.UI'
     customCommand: 'run build'
-  displayName: 'Publish Xbl.Web.UI'  
+  displayName: 'Build Xbl.Web.UI'  
 
 # Copy React build output to wwwroot of published .NET app
 - task: CopyFiles@2
