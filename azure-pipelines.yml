@@ -68,12 +68,17 @@ steps:
 - publish: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
   displayName: 'Publish Artifact'
   artifact: 'drop'
-    
-- task: AzureRmWebAppDeployment@5
+
+- task: AzureWebApp@1
   displayName: 'Deploy to Azure Web App'
   inputs:
-    ConnectionType: 'AzureRM'
     azureSubscription: 'Visual Studio Enterprise(edecda7b-57b5-41b5-845a-33e9333d4186)'
     appType: 'webApp'
-    WebAppName: 'xbl'
-    packageForLinux: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
+    appName: 'xbl'
+    package: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
+    deploymentMethod: 'auto'
+    enableCustomDeployment: true
+    RuntimeStack: 'DOTNETCORE|8.0'
+    # The following disables Run From Package
+    appSettings: |
+      -WEBSITE_RUN_FROM_PACKAGE    
