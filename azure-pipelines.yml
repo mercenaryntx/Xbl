@@ -1,34 +1,82 @@
-# ASP.NET
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
-
 trigger:
-- main
+  branches:
+    include:
+      - main
+      - master
 
 pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  outputDir: '$(Build.ArtifactStagingDirectory)/publish'
+  reactBuildDir: 'Xbl.Web.UI/build'
 
 steps:
-- task: NuGetToolInstaller@1
-
-- task: NuGetCommand@2
+- task: UseDotNet@2
+  displayName: 'Install .NET SDK'
   inputs:
-    restoreSolution: '$(solution)'
+    packageType: 'sdk'
+    version: '8.x'
+    installationPath: $(Agent.ToolsDirectory)/dotnet
 
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
+  displayName: 'Restore Xbl.Web'
   inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'restore'
+    projects: 'Xbl.Web/Xbl.Web.csproj'
 
-- task: VSTest@2
+- task: DotNetCoreCLI@2
+  displayName: 'Build Xbl.Web'
   inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'build'
+    projects: 'Xbl.Web/Xbl.Web.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publish Xbl.Web'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'Xbl.Web/Xbl.Web.csproj'
+    arguments: '--configuration $(buildConfiguration) --output $(outputDir)'
+
+# Build React app
+- task: NodeTool@0
+  displayName: 'Install Node.js'
+  inputs:
+    versionSpec: '18.x'
+
+- script: |
+    cd Xbl.Web.UI
+    npm install
+    npm run build
+  displayName: 'Build React App (Xbl.Web.UI)'
+
+# Copy React build output to wwwroot of published .NET app
+- task: CopyFiles@2
+  displayName: 'Copy React build to wwwroot'
+  inputs:
+    SourceFolder: '$(reactBuildDir)'
+    Contents: '**'
+    TargetFolder: '$(outputDir)/wwwroot'
+
+- task: ArchiveFiles@2
+  displayName: 'Archive deployment package'
+  inputs:
+    rootFolderOrFile: '$(outputDir)'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
+    replaceExistingArchive: true
+- publish: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
+  displayName: 'Publish Artifact'
+  artifact: 'drop'
+
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: 'Visual Studio Enterprise(edecda7b-57b5-41b5-845a-33e9333d4186)'
+    appType: 'webApp'
+    appName: 'xbl'
+    package: '$(Build.ArtifactStagingDirectory)/XblWebApp.zip'
+    deploymentMethod: 'auto'
