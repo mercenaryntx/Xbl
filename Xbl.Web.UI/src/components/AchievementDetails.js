@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import TimeDisplay from './TimeDisplay';
+import { getHeaders } from '../lastUpdate';
 import gamerscoreIcon from '../assets/images/gamerscore.svg';
 import trophyIcon from '../assets/images/icons8-trophy-16.png';
 import diamondIcon from '../assets/images/icons8-diamond-16.png';
@@ -20,23 +21,24 @@ const AchievementDetails = () => {
   const [achievements, setAchievements] = useState([]);
 
   useEffect(() => {
-    const fetchAchievements = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/Titles/${source}/${titleId}`);
-        const data = await response.json();
-        setAchievements(data.achievements);
-		setMinutes(data.minutes);
-      } catch (error) {
-        console.error('Error fetching achievement details:', error);
-      }
-    };
-
     fetchAchievements();
-  }, [titleId]);
+  }, [source, titleId]);
+
+	const fetchAchievements = async () => {
+		try {
+			const headers = await getHeaders(API_BASE_URL);
+			const response = await fetch(`${API_BASE_URL}/Titles/${source}/${titleId}`, { headers: headers });
+			const data = await response.json();
+			setAchievements(data.achievements);
+			setMinutes(data.minutes);
+		} catch (error) {
+			console.error('Error fetching achievement details:', error);
+		}
+	};
   
   function resize(url) {
 	  if (url) {
-		  if (source == 'live') return url + '&w=400';
+		  if (source === 'live') return url + '&w=400';
 		  return url;
 	  }
 	  return placeholderIcon;

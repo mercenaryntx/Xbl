@@ -1,7 +1,7 @@
-// src/components/AchievementsList.js
 import React, { useState, useEffect, useRef } from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import AchievementItem from './AchievementItem';
+import { LAST_UPDATE_KEY, getHeaders, setLastUpdate } from '../lastUpdate';
 import searchIcon from '../assets/images/icons8-search-16.png';
 import loading from '../assets/images/loading.svg';
 import './AchievementsList.css';
@@ -33,7 +33,8 @@ const AchievementsList = () => {
 
 	async function fetchPage() {
 		const o = replaceOrderPostfix(order);
-		const response = await fetch(`${API_BASE_URL}/Titles/${source}?page=${page}&orderBy=${o}&title=${searchQuery}`);
+		const headers = await getHeaders(API_BASE_URL);
+		const response = await fetch(`${API_BASE_URL}/Titles/${source}?page=${page}&orderBy=${o}&title=${searchQuery}`, { headers: headers });
 		return await response.json();
 	}
 
@@ -92,7 +93,8 @@ const AchievementsList = () => {
 
 	const update = async (e) => {
 		loadingRef.current.classList.remove('d-none');
-		await fetch(`${API_BASE_URL}/Titles/update`, { method: "POST" });
+		const response = await fetch(`${API_BASE_URL}/Titles/update`, { method: "POST" });
+		setLastUpdate(response.headers.get(LAST_UPDATE_KEY));
 		loadingRef.current.classList.add('d-none');
 		setPage(0);
 		setHasMore(true);

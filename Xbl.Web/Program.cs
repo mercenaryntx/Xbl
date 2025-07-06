@@ -37,6 +37,17 @@ builder.Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddResponseCaching();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("X-Titles-Last-Update");
+    });
+});
 
 var app = builder.Build();
 
@@ -47,10 +58,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(c => c.AllowAnyOrigin());
 
 app.UseRouting();
+app.UseCors();
 app.UseAuthorization();
+app.UseResponseCaching(); 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseEndpoints(endpoints =>

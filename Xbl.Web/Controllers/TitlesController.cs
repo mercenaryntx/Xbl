@@ -18,6 +18,7 @@ public class TitlesController : ControllerBase
     private readonly ILogger<TitlesController> _logger;
     private readonly IDatabaseContext _live;
 
+    private const string LastUpdateHeader = "X-Titles-Last-Update";
     private const string TitleSelector = """
                                          SELECT 
                                            json_extract(Data, '$.titleId') as TitleId,
@@ -47,6 +48,7 @@ public class TitlesController : ControllerBase
     }
 
     [HttpGet("{source}")]
+    [ResponseCache(Duration = 3600, VaryByQueryKeys = ["title", "orderBy", "orderDir", "page"], VaryByHeader = LastUpdateHeader)]
     public async Task<IEnumerable<Title>> Get(
         string source,
         [FromQuery] string title = "", 
@@ -74,6 +76,7 @@ public class TitlesController : ControllerBase
     }
 
     [HttpGet("{source}/{titleId}")]
+    [ResponseCache(Duration = 3600, VaryByHeader = LastUpdateHeader)]
     public async Task<TitleDetail> Get(string source, int titleId)
     {
         var repo = source switch
@@ -105,8 +108,19 @@ public class TitlesController : ControllerBase
     }
 
     [HttpPost("update")]
-    public async Task Update()
+    public async Task<IActionResult> Update()
     {
         await _xbl.Update();
+        var lastUpdate = await _live.Query<DateTime>("SELECT json_extract(Data, '$.titleHistory.lastTimePlayed') FROM title ORDER BY json_extract(Data, '$.titleHistory.lastTimePlayed') DESC LIMIT 1");
+        Response.Headers[LastUpdateHeader] = lastUpdate.Single().ToString("o");
+        return NoContent();
+    }
+
+    [HttpOptions]
+    public async Task<IActionResult> Options()
+    {
+        var lastUpdate = await _live.Query<DateTime>("SELECT json_extract(Data, '$.titleHistory.lastTimePlayed') FROM title ORDER BY json_extract(Data, '$.titleHistory.lastTimePlayed') DESC LIMIT 1");
+        Response.Headers[LastUpdateHeader] = lastUpdate.Single().ToString("o");
+        return NoContent();
     }
 }
