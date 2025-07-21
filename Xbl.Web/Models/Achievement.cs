@@ -2,6 +2,7 @@
 
 public class Achievement
 {
+    public string Id { get; set; }
     public string Name { get; set; }
     public string Image { get; set; }
     public bool IsUnlocked { get; set; }

@@ -46,6 +46,7 @@ public class XblClient : IXblClient
         {
             await _console.Progress(async ctx =>
             {
+                //await DownloadLiveImages(ctx);
                 if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
                 _dbox.Mandatory();
                 var titles = await UpdateTitles(ctx);
@@ -83,6 +84,47 @@ public class XblClient : IXblClient
         {
             _console.MarkupLine(string.Empty);
             return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+        }
+    }
+
+    private async Task DownloadLiveImages(IProgressContext ctx)
+    {
+        var handler = new HttpClientHandler();
+        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        var hc = new HttpClient(handler);
+        var tr = await _live.GetRepository<Title>();
+        var all = await tr.GetAll();
+        var titles = all.ToArray();
+        var task = ctx.AddTask("[white]Downloading Title images[/]", titles.Length);
+        foreach (var title in titles)
+        {
+            var fileName = title.IntId + ".png";
+            var filePath = Path.Combine(DataSource.DataFolder, "titles", fileName);
+            if (!File.Exists(filePath))
+            {
+                var img = title.DisplayImage;
+                var url = img.Contains('?') ? img + "&w=100" : img + "?w=100";
+                var bytes = await hc.GetByteArrayAsync(url);
+                await File.WriteAllBytesAsync(filePath, bytes);
+            }
+            task.Increment(1);
+        }
+
+        var ar = await _live.GetRepository<Achievement>();
+        var allAchievements = await ar.GetAll();
+        var achievements = allAchievements.ToArray();
+        var task2 = ctx.AddTask("[white]Downloading Achievement images[/]", achievements.Length);
+        foreach (var achievement in achievements)
+        {
+            var fileName = achievement.TitleId + "." + achievement.Id + ".png";
+            var filePath = Path.Combine(DataSource.DataFolder, "achievements", fileName);
+            if (!File.Exists(filePath))
+            {
+                var img = achievement.DisplayImage;
+                var bytes = await hc.GetByteArrayAsync(img + "&w=400");
+                await File.WriteAllBytesAsync(filePath, bytes);
+            }
+            task2.Increment(1);
         }
     }
 

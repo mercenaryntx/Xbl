@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Serialization;
-using Xbl.Client.Models.Kql;
 
 namespace Xbl.Web.Models;
 
@@ -23,12 +22,4 @@ public class Title
     public int ProgressPercentage { get; set; }
     [JsonPropertyName("lastTimePlayed")]
     public DateTime LastTimePlayed { get; set; }
-}
-
-public class TitleDetail : Title
-{
-    [JsonPropertyName("achievements")]
-    public Achievement[] Achievements { get; set; }
-    [JsonPropertyName("minutes")]
-    public int? Minutes { get; set; }
 }

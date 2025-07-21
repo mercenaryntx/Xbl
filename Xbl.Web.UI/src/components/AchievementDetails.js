@@ -36,20 +36,24 @@ const AchievementDetails = () => {
 		}
 	};
   
-  function resize(url) {
-	  if (url) {
-		  if (source === 'live') return url + '&w=400';
-		  return url;
-	  }
-	  return placeholderIcon;
-  }
+	function achievementImage(achievement) {
+		if (achievement.displayImage) {
+			if (source === 'live') return `https://xblcdn.blob.core.windows.net/achievements/${titleId}.${achievement.id}.png`;
+			return achievement.displayImage;
+		}
+		return placeholderIcon;
+	}
+
+	function titleImage(id) {
+		return `https://xblcdn.blob.core.windows.net/titles/${id}.png`;
+	}
 
   return (
 	<div className="achievement-details">
 		{title &&
 		<div className="title">
 			<button id="back" onClick={() => navigate(-1)}>&#129168;</button>
-			<img src={title.displayImage} alt={title.name} className="game-image" />
+			<img src={titleImage(title.titleId)} alt={title.name} className="game-image" />
 			<div className="game-details">
 				<div className="game-title">
 					<h3>{title.name}</h3>
@@ -57,8 +61,8 @@ const AchievementDetails = () => {
 				</div>
 				<div className="stat">
 					<span className="nums">
-						<span className="gamerscore"><img src={gamerscoreIcon} className="icon" /> {title.currentGamerscore}/{title.totalGamerscore}</span>
-						<span className="achievements"><img src={trophyIcon} className="icon" /> {title.currentAchievements}</span>
+						<span className="gamerscore"><img src={gamerscoreIcon} alt="gamerscore" className="icon" /> {title.currentGamerscore}/{title.totalGamerscore}</span>
+						<span className="achievements"><img src={trophyIcon} alt="trophy" className="icon" /> {title.currentAchievements}</span>
 					</span>
 					<span className="percentage">{title.progressPercentage.toFixed(2)}%</span>
 				</div>
@@ -73,14 +77,14 @@ const AchievementDetails = () => {
 		<div key={achievement.id} className="achievement-item grid-row-item-d4-t8-m4">
 			<div className="achievement-container">
 			{achievement.isUnlocked &&
-			<img src={resize(achievement.displayImage)} alt={achievement.title} className={source} />
+			<img src={achievementImage(achievement)} alt={achievement.title} className={source} />
 			}
 			{!achievement.isUnlocked &&
 			<img src={lockedIcon} alt={achievement.title} className="achievement-image" />
 			}
 			<h3 className={achievement.isSecret.toString()}>{achievement.name}</h3>
 			<div className="achievement-info">
-				<span className="gamerscore">{achievement.isRare && <img src={diamondIcon} className="icon" /> }<img src={gamerscoreIcon} className="icon" /> {achievement.gamerscore}</span>
+				<span className="gamerscore">{achievement.isRare && <img src={diamondIcon} alt="diamond" className="icon" /> }<img src={gamerscoreIcon} alt="gamerscore" className="icon" /> {achievement.gamerscore}</span>
 				<p className="percentage"> {achievement.rarityPercentage}%</p>
 			</div>
 			</div>
