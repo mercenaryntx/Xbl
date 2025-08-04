@@ -20,7 +20,9 @@ const AchievementDetails = () => {
   const title = location.state?.game;
   const [minutes, setMinutes] = useState(null);
   const [achievements, setAchievements] = useState([]);
-  const [loadingState, setLoadingState] = useState(true);
+	const [loadingState, setLoadingState] = useState(true);
+	const [selectedAchievementId, setSelectedAchievementId] = useState(null);
+
 
   useEffect(() => {
     fetchAchievements();
@@ -84,7 +86,10 @@ const AchievementDetails = () => {
 		)}
 		<div className="achievement-wrap grid-container">
 		{!loadingState && achievements.map((achievement) => (
-		<div key={achievement.id} className="achievement-item grid-row-item-d4-t8-m4">
+			<div key={achievement.id}
+				className="achievement-item grid-row-item-d4-t8-m4"
+				onClick={() => setSelectedAchievementId(selectedAchievementId === achievement.id ? null : achievement.id)}
+				style={{ cursor: 'pointer' }}>
 			<div className="achievement-container">
 			{achievement.isUnlocked &&
 			<img src={achievementImage(achievement)} alt={achievement.title} className={source} />
@@ -92,6 +97,11 @@ const AchievementDetails = () => {
 			{!achievement.isUnlocked &&
 			<img src={lockedIcon} alt={achievement.title} className={source} />
 			}
+			{selectedAchievementId === achievement.id && (
+				<div className="achievement-description-overlay" onClick={e => { e.stopPropagation(); setSelectedAchievementId(null); }}>
+					{achievement.isSecret ? achievement.lockedDescription : achievement.description}
+				</div>
+			)}
 			<h3 className={achievement.isSecret.toString()}>{achievement.name}</h3>
 			<div className="achievement-info">
 				<span className="gamerscore">{achievement.isRare && <img src={diamondIcon} alt="diamond" className="icon" /> }<img src={gamerscoreIcon} alt="gamerscore" className="icon" /> {achievement.gamerscore}</span>
