@@ -121,8 +121,11 @@ public class XblClient : IXblClient
             if (!File.Exists(filePath))
             {
                 var img = achievement.DisplayImage;
-                var bytes = await hc.GetByteArrayAsync(img + "&w=400");
-                await File.WriteAllBytesAsync(filePath, bytes);
+                if (img != null)
+                {
+                    var bytes = await hc.GetByteArrayAsync(img + "&w=400");
+                    await File.WriteAllBytesAsync(filePath, bytes);
+                }
             }
             task2.Increment(1);
         }

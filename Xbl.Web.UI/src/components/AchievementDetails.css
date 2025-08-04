@@ -1,5 +1,20 @@
 /* src/components/AchievementDetails.css */
 
+.loading-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 32px 0;
+  width: 100%;
+  
+	img	{
+		margin: auto;
+		display: block;
+		width: 128px;
+		height: 128px;
+	}  
+}
+
 #back {
 background-color: transparent;
     color: #fff;

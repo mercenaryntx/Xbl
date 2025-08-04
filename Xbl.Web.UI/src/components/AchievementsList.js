@@ -139,7 +139,7 @@ const AchievementsList = () => {
 				dataLength={games.length}
 				next={fetchMoreData}
 				hasMore={hasMore}
-				loader={<p></p>}
+				loader={<div className="loading"><img src={loading}></img></div>}
 				endMessage={<p>No more games</p>}
 			>
 				{games.map((game) => (
