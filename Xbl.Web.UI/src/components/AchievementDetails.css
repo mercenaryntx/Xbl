@@ -202,4 +202,9 @@ background-color: transparent;
 			right: 20px;
 		}
 	}
+	
+	.loading-centered img {
+		width: 96px;
+		height: 96px;
+	}
 }

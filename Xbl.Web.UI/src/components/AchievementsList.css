@@ -104,4 +104,9 @@
 		width: 80px;
 		margin-right: 0px;
 	}
+	
+	.loading-centered img {
+		width: 96px;
+		height: 96px;
+	}
 }

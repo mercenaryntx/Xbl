@@ -56,7 +56,8 @@ public class TitlesController : ControllerBase
         [FromQuery] string orderDir = "DESC", 
         [FromQuery] int page = 0)
     {
-        var where = !string.IsNullOrEmpty(title) ? "WHERE json_extract(Data, '$.name') like @Title" : "";
+        var where = "WHERE json_extract(Data, '$.achievement.totalGamerscore') > 0";
+        if (!string.IsNullOrEmpty(title)) where += " AND json_extract(Data, '$.name') LIKE @Title";
         var query = $"{TitleSelector} {where} ORDER BY json_extract(Data, @OrderBy) {orderDir} LIMIT @Limit OFFSET @Offset";
         const int limit = 50;
         orderBy = orderBy switch
