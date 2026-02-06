@@ -46,7 +46,7 @@ public class XblClient : IXblClient
         {
             await _console.Progress(async ctx =>
             {
-                //await DownloadLiveImages(ctx);
+                await DownloadLiveImages(ctx);
                 if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
                 _dbox.Mandatory();
                 var titles = await UpdateTitles(ctx);
