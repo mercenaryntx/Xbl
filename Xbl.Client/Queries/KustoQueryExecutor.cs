@@ -8,7 +8,6 @@ using Xbl.Client.Models.Kql;
 using Xbl.Client.Models.Xbl.Achievements;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Data;
-using Xbl.Data.Entities;
 
 namespace Xbl.Client.Queries;
 
