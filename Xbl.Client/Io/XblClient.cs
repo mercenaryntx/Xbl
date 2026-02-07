@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Text.Json;
 using AutoMapper;
 using Microsoft.Data.Sqlite;
@@ -271,6 +271,11 @@ public class XblClient : IXblClient
     {
         var statRepository = await _live.GetRepository<Stat>();
         var headers = (await statRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
+        
+        var statDeltaRepository = await _live.GetRepository<StatDelta>();
+        var statDeltaHeaders = (await statDeltaRepository.GetHeaders()).Cast<IntKeyedJsonEntity>()
+            .GroupBy(h => h.PartitionKey)
+            .ToDictionary(g => g.Key, g => g.Max(x => x.Id));
 
         var changes = titlesResult.Titles.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
 
@@ -296,6 +301,39 @@ public class XblClient : IXblClient
             totalInserted += toInsert.Length;
 
             var toUpdate = stats.StatListsCollection[0].Stats.Where(t => headers.ContainsKey(t.Id)).ToArray();
+            
+            var deltas = new List<StatDelta>();
+            foreach (var newStat in toUpdate)
+            {
+                var oldStat = await statRepository.Get(newStat.Id);
+                if (oldStat != null)
+                {
+                    var oldMinutes = oldStat.IntValue;
+                    var newMinutes = newStat.IntValue;
+                    var delta = newMinutes - oldMinutes;
+                    
+                    if (delta > 0)
+                    {
+                        var titleId = newStat.Id;
+                        var nextId = statDeltaHeaders.TryGetValue(titleId, out var maxId) ? maxId + 1 : 0;
+                        
+                        deltas.Add(new StatDelta
+                        {
+                            TitleId = titleId,
+                            Id = nextId,
+                            Minutes = delta
+                        });
+                        
+                        statDeltaHeaders[titleId] = nextId;
+                    }
+                }
+            }
+            
+            if (deltas.Any())
+            {
+                await statDeltaRepository.BulkInsert(deltas);
+            }
+            
             await statRepository.BulkUpdate(toUpdate);
             totalUpdated += toUpdate.Length;
             task.Increment(1);
@@ -305,3 +343,4 @@ public class XblClient : IXblClient
         return (totalInserted, totalUpdated);
     }
 }
+
