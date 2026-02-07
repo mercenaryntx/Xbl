@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -51,11 +50,6 @@ public sealed class App : AsyncCommand<Settings>
         {
             return _console.ShowError("Database not found. Please update first");
         }
-        catch (Exception e)
-        {
-            Debugger.Break();
-            throw;
-        }
     }
 
     private async Task<int> Update()
@@ -69,7 +63,24 @@ public sealed class App : AsyncCommand<Settings>
         {
             return _console.ShowError("Invalid API key");
         }
-        return await _services.GetRequiredService<IXblClient>().Update();
+
+        try
+        {
+            await _services.GetRequiredService<IXblClient>().Update();
+            return 0;
+        }
+        catch (HttpRequestException ex)
+        {
+            _console.MarkupLine(string.Empty);
+            _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+            return -1;
+        }
+        catch (Exception ex)
+        {
+            _console.MarkupLine(string.Empty);
+            _console.ShowError($"[silver]Unknown error: [/][red]{ex.Message}[/]");
+            return -1;
+        }
     }
 
     private async Task<int> ImportXbox360Profile()

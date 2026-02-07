@@ -39,50 +39,64 @@ public class XblClient : IXblClient
         _dbox = dbox;
     }
 
-    public async Task<int> Update()
+    public async Task<UpdateResult> Update()
     {
         var update = _settings.Update;
+        var result = new UpdateResult();
+        
         try
         {
             await _console.Progress(async ctx =>
             {
                 if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
                 _dbox.Mandatory();
-                var titles = await UpdateTitles(ctx);
+                var titlesResult = await UpdateTitles(ctx);
+                result = result with 
+                { 
+                    TitlesInserted = titlesResult.Inserted, 
+                    TitlesUpdated = titlesResult.Updated 
+                };
 
                 if (update is "all" or "achievements")
                 {
                     var ar = await _live.GetRepository<Achievement>();
                     var headers = (await ar.GetHeaders()).Cast<IntKeyedJsonEntity>().GroupBy(t => t.PartitionKey).ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Id));
 
-                    var src = titles.Titles
+                    var src = titlesResult.Titles.Titles
                         .Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile))
                         .GroupBy(t => t.OriginalConsole == Device.Xbox360);
                     foreach (var grouping in src)
                     {
-                        switch (grouping.Key)
+                        var achievementsResult = grouping.Key switch
                         {
-                            case true:
-                                await UpdateAchievements(ctx, grouping, ar, headers, t => Get360Achievements(t, titles.Xuid));
-                                break;
-                            case false:
-                                await UpdateAchievements(ctx, grouping, ar, headers, GetAchievements);
-                                break;
-                        }
+                            true => await UpdateAchievements(ctx, grouping, ar, headers, t => Get360Achievements(t, titlesResult.Xuid)),
+                            false => await UpdateAchievements(ctx, grouping, ar, headers, GetAchievements)
+                        };
+                        result = result with
+                        {
+                            AchievementsInserted = result.AchievementsInserted + achievementsResult.Inserted,
+                            AchievementsUpdated = result.AchievementsUpdated + achievementsResult.Updated
+                        };
                     }
                 }
                 if (update is "all" or "stats")
                 {
-                    await UpdateStats(ctx, titles);
+                    var statsResult = await UpdateStats(ctx, titlesResult);
+                    result = result with
+                    {
+                        StatsInserted = statsResult.Inserted,
+                        StatsUpdated = statsResult.Updated
+                    };
                 }
             });
 
-            return 0;
+            return result;
         }
         catch (HttpRequestException ex)
         {
             _console.MarkupLine(string.Empty);
-            return _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+            _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+            throw;
         }
     }
 
@@ -117,7 +131,7 @@ public class XblClient : IXblClient
         task.Increment(100 - task.Value); // Ensure the task is marked as complete
     }
 
-    private async Task<AchievementTitles> UpdateTitles(IProgressContext ctx)
+    private async Task<(AchievementTitles Titles, string Xuid, int Inserted, int Updated)> UpdateTitles(IProgressContext ctx)
     {
         var marketplaceRepository = await _dbox.GetRepository<Product>(DataTable.Marketplace);
         var storeRepository = await _dbox.GetRepository<Product>(DataTable.Store);
@@ -150,7 +164,7 @@ public class XblClient : IXblClient
 
         a.Titles = insert.Concat(update).ToArray();
         if (a.Titles.Any(t => t.Products == null)) _console.ShowError("Some titles are missing from the Store or Marketplace data.");
-        return a;
+        return (a, a.Xuid, insert.Length, update.Length);
     }
 
     private static Title EnrichTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
@@ -203,8 +217,11 @@ public class XblClient : IXblClient
         return title;
     }
 
-    private static async Task UpdateAchievements(IProgressContext ctx, IEnumerable<Title> titles, IRepository<Achievement> ar, Dictionary<int, Dictionary<int, IntKeyedJsonEntity>> headers, Func<Title, Task<Achievement[]>> updateLogic)
+    private static async Task<(int Inserted, int Updated)> UpdateAchievements(IProgressContext ctx, IEnumerable<Title> titles, IRepository<Achievement> ar, Dictionary<int, Dictionary<int, IntKeyedJsonEntity>> headers, Func<Title, Task<Achievement[]>> updateLogic)
     {
+        int totalInserted = 0;
+        int totalUpdated = 0;
+        
         foreach (var title in titles)
         {
             var task = ctx.AddTask($"[white]Updating[/] [cyan1]{title.Name}[/]", 2);
@@ -213,16 +230,23 @@ public class XblClient : IXblClient
             if (!headers.TryGetValue(title.Id, out var achievements))
             {
                 await ar.BulkInsert(a);
+                totalInserted += a.Length;
                 task.Increment(2);
                 continue;
             }
 
-            await ar.BulkInsert(a.Where(t => !achievements.ContainsKey(t.Id)));
+            var toInsert = a.Where(t => !achievements.ContainsKey(t.Id)).ToArray();
+            await ar.BulkInsert(toInsert);
+            totalInserted += toInsert.Length;
             task.Increment(1);
 
-            await ar.BulkUpdate(a.Where(t => achievements.ContainsKey(t.Id)));
+            var toUpdate = a.Where(t => achievements.ContainsKey(t.Id)).ToArray();
+            await ar.BulkUpdate(toUpdate);
+            totalUpdated += toUpdate.Length;
             task.Increment(1);
         }
+        
+        return (totalInserted, totalUpdated);
     }
 
     private async Task<Achievement[]> GetAchievements(Title title)
@@ -243,34 +267,41 @@ public class XblClient : IXblClient
         return a.Achievements;
     }
 
-    private async Task UpdateStats(IProgressContext ctx, AchievementTitles titles)
+    private async Task<(int Inserted, int Updated)> UpdateStats(IProgressContext ctx, (AchievementTitles Titles, string Xuid, int Inserted, int Updated) titlesResult)
     {
         var statRepository = await _live.GetRepository<Stat>();
         var headers = (await statRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
 
-        var changes = titles.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
+        var changes = titlesResult.Titles.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
 
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
-            XUIDs = [titles.Xuid],
+            XUIDs = [titlesResult.Xuid],
             Stats = c.Select(x => new Stat { Name = "MinutesPlayed", TitleId = x.IntId }).ToArray()
         }).ToArray();
 
         var task = ctx.AddTask("[white]Updating stats[/]", pages.Length + 1);
 
+        int totalInserted = 0;
+        int totalUpdated = 0;
+        
         foreach (var page in pages)
         {
             var response = await _client.PostAsJsonAsync("player/stats", page);
             var content = await response.Content.ReadAsStringAsync();
             var stats = JsonSerializer.Deserialize<TitleStats>(content);
 
-            var insert = stats.StatListsCollection[0].Stats.Where(t => !headers.ContainsKey(t.Id));
-            await statRepository.BulkInsert(insert);
+            var toInsert = stats.StatListsCollection[0].Stats.Where(t => !headers.ContainsKey(t.Id)).ToArray();
+            await statRepository.BulkInsert(toInsert);
+            totalInserted += toInsert.Length;
 
-            var update = stats.StatListsCollection[0].Stats.Where(t => headers.ContainsKey(t.Id));
-            await statRepository.BulkUpdate(update);
+            var toUpdate = stats.StatListsCollection[0].Stats.Where(t => headers.ContainsKey(t.Id)).ToArray();
+            await statRepository.BulkUpdate(toUpdate);
+            totalUpdated += toUpdate.Length;
             task.Increment(1);
         }
         task.Increment(1);
+        
+        return (totalInserted, totalUpdated);
     }
 }
