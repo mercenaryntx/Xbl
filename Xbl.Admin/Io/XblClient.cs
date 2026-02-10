@@ -18,7 +18,7 @@ public class XblClient : IXblClient
         _xbl = xbl.Mandatory();
     }
 
-    public async Task<Dictionary<string, XblProduct>> GetGameDetails(IEnumerable<string> ids)
+    public async Task<Dictionary<string, XblProduct>> GetGameDetailsByProductId(IEnumerable<string> ids)
     {
         var result = new Dictionary<string, XblProduct>();
         var productRepository = await _xbl.GetRepository<XblProduct>("product");
@@ -36,5 +36,14 @@ public class XblClient : IXblClient
         }
 
         return result;
+    }
+
+    public async Task<Dictionary<string, XblProduct>> GetGameDetailsByTitleId(string titleId)
+    {
+        var response = await _client.GetAsync("marketplace/title/" + titleId);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var collection = JsonSerializer.Deserialize<XblProductCollection>(content);
+        return collection.Products.ToDictionary(p => p.Id);
     }
 }

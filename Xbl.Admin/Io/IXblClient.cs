@@ -4,5 +4,6 @@ namespace Xbl.Admin.Io;
 
 public interface IXblClient
 {
-    Task<Dictionary<string, XblProduct>> GetGameDetails(IEnumerable<string> ids);
+    Task<Dictionary<string, XblProduct>> GetGameDetailsByProductId(IEnumerable<string> ids);
+    Task<Dictionary<string, XblProduct>> GetGameDetailsByTitleId(string titleId);
 }

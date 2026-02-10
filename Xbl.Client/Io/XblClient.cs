@@ -1,12 +1,13 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using AutoMapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Marketplace;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Data;
 using Xbl.Data.Entities;
@@ -20,7 +21,6 @@ public class XblClient : IXblClient
     private readonly IConsole _console;
     private readonly IMapper _mapper;
     private readonly IDatabaseContext _live;
-    private readonly IDatabaseContext _dbox;
     private readonly HttpClient _client;
 
     public XblClient(
@@ -28,15 +28,13 @@ public class XblClient : IXblClient
         HttpClient client, 
         IConsole console, 
         IMapper mapper, 
-        [FromKeyedServices(DataSource.Live)] IDatabaseContext live, 
-        [FromKeyedServices(DataSource.Dbox)] IDatabaseContext dbox)
+        [FromKeyedServices(DataSource.Live)] IDatabaseContext live)
     {
         _settings = settings;
         _client = client;
         _console = console;
         _mapper = mapper;
         _live = live.Mandatory(SqliteOpenMode.ReadWriteCreate);
-        _dbox = dbox;
     }
 
     public async Task<UpdateResult> Update()
@@ -48,8 +46,6 @@ public class XblClient : IXblClient
         {
             await _console.Progress(async ctx =>
             {
-                if (!_dbox.IsExists) await DownloadLatestDboxDb(ctx);
-                _dbox.Mandatory();
                 var titlesResult = await UpdateTitles(ctx);
                 result = result with 
                 { 
@@ -100,45 +96,8 @@ public class XblClient : IXblClient
         }
     }
 
-    private async Task DownloadLatestDboxDb(IProgressContext ctx)
-    {
-        var task = ctx.AddTask("[white]Getting store data[/]", 100);
-        var response = await _client.GetAsync(new Uri("http://www.mercenary.hu/xbl/dbox.db"), HttpCompletionOption.ResponseHeadersRead);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        var canReportProgress = totalBytes != -1;
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync();
-        var filePath = Path.Combine(DataSource.DataFolder, "dbox.db");
-        await using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            var buffer = new byte[8192];
-            long totalReadBytes = 0;
-            int readBytes;
-
-            while ((readBytes = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-            {
-                await fileStream.WriteAsync(buffer, 0, readBytes);
-                if (canReportProgress)
-                {
-                    totalReadBytes += readBytes;
-                    var progress = (double)totalReadBytes / totalBytes * 100;
-                    task.Value = progress;
-                }
-            }
-        }
-        task.Increment(100 - task.Value); // Ensure the task is marked as complete
-    }
-
     private async Task<(AchievementTitles Titles, string Xuid, int Inserted, int Updated)> UpdateTitles(IProgressContext ctx)
     {
-        var marketplaceRepository = await _dbox.GetRepository<Product>(DataTable.Marketplace);
-        var storeRepository = await _dbox.GetRepository<Product>(DataTable.Store);
-
-        var marketplace = (await marketplaceRepository.GetAll()).ToDictionary(m => m.TitleId);
-        var store = (await storeRepository.GetAll()).ToDictionary(m => m.TitleId);
-
         var task = ctx.AddTask("[white]Getting titles[/]", 4);
         var json = await _client.GetStringAsync("achievements/");
         var a = JsonSerializer.Deserialize<AchievementTitles>(json);
@@ -148,22 +107,14 @@ public class XblClient : IXblClient
         var headers = (await titlesRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
         task.Increment(1);
 
-        var insert = a.Titles
-            .Where(t => !headers.ContainsKey(t.Id))
-            .Select(t => EnrichTitle(t, store, marketplace))
-            .ToArray();
+        var insert = await EnrichTitle(a.Titles.Where(t => !headers.ContainsKey(t.Id)).ToArray());
         await titlesRepository.BulkInsert(insert);
         task.Increment(1);
 
-        var update = a.Titles
-            .Where(t => headers.TryGetValue(t.Id, out var header) && header.UpdatedOn < t.TitleHistory.LastTimePlayed)
-            .Select(t => EnrichTitle(t, store, marketplace))
-            .ToArray();
+        var update = await EnrichTitle(a.Titles.Where(t => headers.TryGetValue(t.Id, out var header) && header.UpdatedOn < t.TitleHistory.LastTimePlayed).ToArray());
         await titlesRepository.BulkUpdate(update);
         task.Increment(1);
 
-        a.Titles = insert.Concat(update).ToArray();
-        if (a.Titles.Any(t => t.Products == null)) _console.ShowError("Some titles are missing from the Store or Marketplace data.");
         return (a, a.Xuid, insert.Length, update.Length);
     }
 
@@ -217,6 +168,74 @@ public class XblClient : IXblClient
         return title;
     }
 
+    private async Task<Title[]> EnrichTitle(Title[] titles)
+    {
+        foreach (var title in titles)
+        {
+            title.Source = DataSource.Live;
+            title.HexId = title.IntId.ToHexId();
+
+            if (title.CompatibleDevices.Contains("Mobile")) continue;
+
+            var products = await GetGameDetailsByTitleId(title.IntId);
+
+            var d = new Dictionary<string, XblProductVersion>();
+            foreach (var sp in products.OrderBy(x => x.Properties.XboxConsoleGenCompatible?.Length))
+            {
+                var v = new XblProductVersion
+                {
+                    Title = sp.LocalizedProperties.First().ProductTitle,
+                    ProductId = sp.ProductId,
+                    ReleaseDate = sp.MarketProperties.Length > 0 ? sp.MarketProperties[0].OriginalReleaseDate : null,
+                    PackageIdentityName = sp.Properties.PackageIdentityName,
+                    XboxConsoleGenOptimized = sp.Properties.XboxConsoleGenOptimized,
+                    XboxConsoleGenCompatible = sp.Properties.XboxConsoleGenCompatible,
+                    RevisionId = sp.Properties.RevisionId,
+                    OriginalReleaseDate = sp.MarketProperties.First().OriginalReleaseDate
+                };
+                if (sp.Properties.XboxConsoleGenCompatible == null)
+                {
+                    if (d.ContainsKey(Device.PC) && sp.Properties.RevisionId < d[Device.PC].RevisionId) continue;
+                    d[Device.PC] = v;
+                    continue;
+                }
+
+                if (sp.Properties.PackageIdentityName.StartsWith("Xbox360BackwardCompatibil."))
+                {
+                    d.Add(Device.Xbox360, v);
+                    continue;
+                }
+                foreach (var gen in sp.Properties.XboxConsoleGenCompatible)
+                {
+                    if (gen == "ConsoleGen8")
+                    {
+                        if (d.ContainsKey(Device.XboxOne) && sp.Properties.RevisionId < d[Device.XboxOne].RevisionId) continue;
+                        d[Device.XboxOne] = v;
+                        break;
+                    }
+
+                    if (gen == "ConsoleGen9")
+                    {
+                        d.Add(Device.XboxSeries, v);
+                        break;
+                    }
+
+                    _console.ShowError($"Unknown generation: {gen}");
+                }
+            }
+
+            title.Category = products.First().Properties.Category;
+            title.Products = d.ToDictionary(kvp => kvp.Key, kvp => new TitleProduct
+            {
+                TitleId = title.HexId,
+                ProductId = kvp.Value.ProductId,
+                ReleaseDate = kvp.Value.OriginalReleaseDate
+            });
+            title.OriginalConsole = title.Products.Keys.OrderBy(k => k).FirstOrDefault(k => k.StartsWith("Xbox"));
+        }
+        return titles;
+    }
+
     private static async Task<(int Inserted, int Updated)> UpdateAchievements(IProgressContext ctx, IEnumerable<Title> titles, IRepository<Achievement> ar, Dictionary<int, Dictionary<int, IntKeyedJsonEntity>> headers, Func<Title, Task<Achievement[]>> updateLogic)
     {
         int totalInserted = 0;
@@ -265,6 +284,13 @@ public class XblClient : IXblClient
         }
 
         return a.Achievements;
+    }
+
+    private async Task<XblProduct[]> GetGameDetailsByTitleId(string titleId)
+    {
+        var s = await _client.GetStringAsync("marketplace/title/" + titleId);
+        var collection = JsonSerializer.Deserialize<XblProductCollection>(s);
+        return collection.Products;
     }
 
     private async Task<(int Inserted, int Updated)> UpdateStats(IProgressContext ctx, (AchievementTitles Titles, string Xuid, int Inserted, int Updated) titlesResult)
