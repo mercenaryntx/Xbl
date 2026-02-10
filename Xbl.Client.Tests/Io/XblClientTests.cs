@@ -473,7 +473,7 @@ public class XblClientTests
         var mapper = config.CreateMapper();
 
         _settings = new Settings { Update = update };
-        _xblClient = new XblClient(_settings, _httpClient, _consoleMock.Object, mapper, _db, _db);
+        _xblClient = new XblClient(_settings, _httpClient, _consoleMock.Object, mapper, _db);
     }
 
     private static Title CreateTestTitle(string device, string id)
