@@ -58,7 +58,7 @@ public class XblClient : IXblClient
                     var ar = await _live.GetRepository<Achievement>();
                     var headers = (await ar.GetHeaders()).Cast<IntKeyedJsonEntity>().GroupBy(t => t.PartitionKey).ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Id));
 
-                    var src = titlesResult.Titles.Titles
+                    var src = titlesResult.Titles
                         .Where(t => t.Achievement.CurrentAchievements > 0 && !t.CompatibleDevices.Contains(Device.Mobile))
                         .GroupBy(t => t.OriginalConsole == Device.Xbox360);
                     foreach (var grouping in src)
@@ -91,12 +91,12 @@ public class XblClient : IXblClient
         catch (HttpRequestException ex)
         {
             _console.MarkupLine(string.Empty);
-            _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.StatusCode}[/]");
+            _console.ShowError($"[silver]OpenXBL API returned an error [/] [red]({(int?) ex.StatusCode}) {ex.Message}[/]");
             throw;
         }
     }
 
-    private async Task<(AchievementTitles Titles, string Xuid, int Inserted, int Updated)> UpdateTitles(IProgressContext ctx)
+    private async Task<(Title[] Titles, string Xuid, int Inserted, int Updated)> UpdateTitles(IProgressContext ctx)
     {
         var task = ctx.AddTask("[white]Getting titles[/]", 4);
         var json = await _client.GetStringAsync("achievements/");
@@ -115,7 +115,7 @@ public class XblClient : IXblClient
         await titlesRepository.BulkUpdate(update);
         task.Increment(1);
 
-        return (a, a.Xuid, insert.Length, update.Length);
+        return (insert.Concat(update).ToArray(), a.Xuid, insert.Length, update.Length);
     }
 
     private static Title EnrichTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
@@ -293,7 +293,7 @@ public class XblClient : IXblClient
         return collection.Products;
     }
 
-    private async Task<(int Inserted, int Updated)> UpdateStats(IProgressContext ctx, (AchievementTitles Titles, string Xuid, int Inserted, int Updated) titlesResult)
+    private async Task<(int Inserted, int Updated)> UpdateStats(IProgressContext ctx, (Title[] Titles, string Xuid, int Inserted, int Updated) titlesResult)
     {
         var statRepository = await _live.GetRepository<Stat>();
         var headers = (await statRepository.GetHeaders()).Cast<IntKeyedJsonEntity>().ToDictionary(m => m.Id);
@@ -303,7 +303,7 @@ public class XblClient : IXblClient
             .GroupBy(h => h.PartitionKey)
             .ToDictionary(g => g.Key, g => g.Max(x => x.Id));
 
-        var changes = titlesResult.Titles.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
+        var changes = titlesResult.Titles.Where(title => !title.CompatibleDevices.Contains(Device.Mobile) && title.OriginalConsole != Device.Xbox360).ToArray();
 
         var pages = changes.Chunk(100).Select(c => new PlayerStatsRequest
         {
