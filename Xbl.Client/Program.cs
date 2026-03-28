@@ -50,12 +50,13 @@ public class Program
             .AddSingleton(new GlobalConfig { DataFolder = DataSource.DataFolder })
             .AddData(DataSource.Live, DataSource.Xbox360, DataSource.Dbox, DataSource.Xbl);
 
-        services.AddHttpClient<IXblClient, XblClient>((s, c) =>
+        services.AddHttpClient<IXblApiClient, XblApiClientV2>((s, c) =>
                 {
                     var settings = s.GetRequiredService<Settings>();
                     c.DefaultRequestHeaders.Add("x-authorization", settings.ApiKey);
-                    c.BaseAddress = new Uri("https://xbl.io/api/v2/");
+                    c.BaseAddress = new Uri("https://xbl.io/api/");
                 });
+        services.AddSingleton<IXblClient, XblClient>();
 
         return new XblTypeRegistrar(services);
     }

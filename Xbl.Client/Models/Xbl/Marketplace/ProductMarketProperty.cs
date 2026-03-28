@@ -5,7 +5,7 @@ namespace Xbl.Client.Models.Xbl.Marketplace;
 [ExcludeFromCodeCoverage]
 public class ProductMarketProperty
 {
-    public DateTime OriginalReleaseDate { get; set; }
+    public DateTime? OriginalReleaseDate { get; set; }
     public int MinimumUserAge { get; set; }
     public ContentRating[] ContentRatings { get; set; }
     public RelatedProduct[] RelatedProducts { get; set; }

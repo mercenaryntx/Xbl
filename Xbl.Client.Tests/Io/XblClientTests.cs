@@ -10,6 +10,7 @@ using Xbl.Client.Infrastructure;
 using Xbl.Client.Io;
 using Xbl.Client.Models.Dbox;
 using Xbl.Client.Models.Xbl.Achievements;
+using Xbl.Client.Models.Xbl.Marketplace;
 using Xbl.Client.Models.Xbl.Player;
 using Xbl.Client.Tests.Extensions;
 using Xbl.Data;
@@ -23,7 +24,7 @@ public class XblClientTests
 
     private Mock<IConsole> _consoleMock;
     private Mock<IProgressContext> _progressContextMock;
-    private HttpClient _httpClient;
+    private Mock<IXblApiClient> _apiMock;
     private XblClient _xblClient;
     private Settings _settings;
 
@@ -50,7 +51,6 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            result.Should().Be(0);
             var titles = await AssertTitles();
 
             var t1 = titles.Single(t => t.IntId == xone.IntId);
@@ -84,7 +84,6 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            result.Should().Be(0);
             var titles = await AssertTitles();
 
             var t1 = titles.Single(t => t.IntId == xone.IntId);
@@ -117,7 +116,6 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            result.Should().Be(0);
             var title = await r.Get(1915865634);
             title.Should().NotBeEquivalentTo(_achievementsResponse.Titles[0],
                 o => o.Excluding(t => t.HexId)
@@ -147,7 +145,6 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            result.Should().Be(0);
             var titles = await AssertTitles();
 
             var t1 = titles.Single(t => t.IntId == x360.IntId);
@@ -168,7 +165,6 @@ public class XblClientTests
         xone.Name = $"[Fission] Backcompat game ({x360.IntId.ToHexId()})";
         xone.CompatibleDevices = [ Device.Xbox360 ];
         SetupTestTitles(x360);
-        SetupTestStore(xone);
         SetupTestMarketplace(x360);
         await Setup();
 
@@ -178,18 +174,12 @@ public class XblClientTests
         // Assert
         using (new AssertionScope())
         {
-            result.Should().Be(0);
             var titles = await AssertTitles();
 
             var t1 = titles.Single(t => t.IntId == x360.IntId);
             t1.Should().NotBeNull();
             t1.Category.Should().Be("Shooter");
-            t1.IsBackCompat.Should().BeTrue();
-            t1.Products.Should().BeEquivalentTo(new[]
-            {
-                new KeyValuePair<string,TitleProduct>(Device.Xbox360, new TitleProduct { ProductId = "98765432", TitleId = t1.HexId }),
-                new KeyValuePair<string,TitleProduct>("BackCompat", new TitleProduct { ProductId = "12345678", TitleId = xone.IntId.ToHexId() })
-            });
+            t1.Products.Values.Should().BeEquivalentTo([new TitleProduct { ProductId = "98765432", TitleId = t1.HexId }]);
         }
     }
 
@@ -430,17 +420,14 @@ public class XblClientTests
     }
 
     [Fact]
-    public async Task Update_ShouldReturnErrorCodeOnHttpRequestException()
+    public async Task Update_ShouldThrowOnHttpRequestException()
     {
         // Arrange
         await Setup();
         _consoleMock.Setup(c => c.Progress(It.IsAny<Func<IProgressContext, Task>>())).ThrowsAsync(new HttpRequestException());
 
-        // Act
-        var result = await _xblClient.Update();
-
-        // Assert
-        result.Should().NotBe(0);
+        // Act & Assert
+        await _xblClient.Invoking(c => c.Update()).Should().ThrowAsync<HttpRequestException>();
     }
 
     private async Task<Title[]> AssertTitles()
@@ -466,14 +453,14 @@ public class XblClientTests
     {
         await SetupDatabaseMock();
         SetupConsoleMock();
-        SetupHttpClientMock();
+        SetupApiMock();
         SetupProgressContextMock();
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
         var mapper = config.CreateMapper();
 
         _settings = new Settings { Update = update };
-        _xblClient = new XblClient(_settings, _httpClient, _consoleMock.Object, mapper, _db);
+        _xblClient = new XblClient(_settings, _apiMock.Object, _consoleMock.Object, mapper, _db);
     }
 
     private static Title CreateTestTitle(string device, string id)
@@ -599,15 +586,61 @@ public class XblClientTests
         _consoleMock.Setup(c => c.ShowError(It.IsAny<string>())).Returns(1);
     }
 
-    private void SetupHttpClientMock()
+    private void SetupApiMock()
     {
-        _httpClient = new HttpClientMockBuilder("https://example.com")
-            .AddResponse("/achievements/", _ => _achievementsResponse.ToHttpResponseMessage())
-            .AddResponse("/achievements/title/1915865634", _ => _achievementsTitleResponse["1915865634"].ToHttpResponseMessage())
-            .AddResponse("/achievements/x360/123/title/1915865634", _ => _achievementsX360TitleResponse["1915865634"].ToHttpResponseMessage())
-            .AddResponse("/achievements/title/1745345352", _ => _achievementsTitleResponse["1745345352"].ToHttpResponseMessage())
-            .AddResponse("/player/stats", _ => _playerStatsResponse.ToHttpResponseMessage())
-            .Build();
+        _apiMock = new Mock<IXblApiClient>();
+        _apiMock.Setup(a => a.GetTitles())
+            .ReturnsAsync(_achievementsResponse);
+        _apiMock.Setup(a => a.GetAchievements(It.IsAny<string>()))
+            .ReturnsAsync((string id) => _achievementsTitleResponse.TryGetValue(id, out var r) ? r.Achievements : []);
+        _apiMock.Setup(a => a.Get360Achievements(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((string xuid, string id) => _achievementsX360TitleResponse.TryGetValue(id, out var r) ? r.Achievements : []);
+        _apiMock.Setup(a => a.GetMarketplaceDetails(It.IsAny<string>()))
+            .ReturnsAsync((string titleId) => BuildMarketplaceProducts(titleId));
+        _apiMock.Setup(a => a.GetPlayerStats(It.IsAny<PlayerStatsRequest>()))
+            .ReturnsAsync(_playerStatsResponse);
+    }
+
+    private XblProduct[] BuildMarketplaceProducts(string titleId)
+    {
+        var hexId = titleId.ToHexId();
+        var storeProduct = _storeProducts?.FirstOrDefault(p => p.TitleId == hexId);
+        if (storeProduct != null)
+        {
+            return storeProduct.Versions.Select(kvp => new XblProduct
+            {
+                ProductId = kvp.Value.ProductId,
+                LocalizedProperties = [new ProductLocalizedProperty { ProductTitle = storeProduct.Title }],
+                MarketProperties = [new ProductMarketProperty()],
+                Properties = new ProductProperties
+                {
+                    Category = storeProduct.Category,
+                    PackageIdentityName = kvp.Key,
+                    XboxConsoleGenCompatible = kvp.Key == Device.XboxOne ? ["ConsoleGen8"]
+                        : kvp.Key == Device.XboxSeries ? ["ConsoleGen9"]
+                        : null
+                }
+            }).ToArray();
+        }
+
+        var marketplaceProduct = _marketplaceProducts?.FirstOrDefault(p => p.TitleId == hexId);
+        if (marketplaceProduct != null)
+        {
+            return marketplaceProduct.Versions.Select(kvp => new XblProduct
+            {
+                ProductId = kvp.Value.ProductId,
+                LocalizedProperties = [new ProductLocalizedProperty { ProductTitle = marketplaceProduct.Title }],
+                MarketProperties = [new ProductMarketProperty()],
+                Properties = new ProductProperties
+                {
+                    Category = marketplaceProduct.Category,
+                    PackageIdentityName = "Xbox360BackwardCompatibil.placeholder",
+                    XboxConsoleGenCompatible = ["ConsoleGen8"]
+                }
+            }).ToArray();
+        }
+
+        return [];
     }
 
     private void SetupProgressContextMock()

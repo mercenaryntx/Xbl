@@ -1,8 +1,6 @@
 using AutoMapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Xbl.Client.Extensions;
 using Xbl.Client.Infrastructure;
 using Xbl.Client.Models.Dbox;
@@ -21,17 +19,17 @@ public class XblClient : IXblClient
     private readonly IConsole _console;
     private readonly IMapper _mapper;
     private readonly IDatabaseContext _live;
-    private readonly HttpClient _client;
+    private readonly IXblApiClient _api;
 
     public XblClient(
-        Settings settings, 
-        HttpClient client, 
-        IConsole console, 
-        IMapper mapper, 
+        Settings settings,
+        IXblApiClient api,
+        IConsole console,
+        IMapper mapper,
         [FromKeyedServices(DataSource.Live)] IDatabaseContext live)
     {
         _settings = settings;
-        _client = client;
+        _api = api;
         _console = console;
         _mapper = mapper;
         _live = live.Mandatory(SqliteOpenMode.ReadWriteCreate);
@@ -99,8 +97,7 @@ public class XblClient : IXblClient
     private async Task<(Title[] Titles, string Xuid, int Inserted, int Updated)> UpdateTitles(IProgressContext ctx)
     {
         var task = ctx.AddTask("[white]Getting titles[/]", 4);
-        var json = await _client.GetStringAsync("achievements/");
-        var a = JsonSerializer.Deserialize<AchievementTitles>(json);
+        var a = await _api.GetTitles();
         task.Increment(1);
 
         var titlesRepository = await _live.GetRepository<Title>();
@@ -118,56 +115,6 @@ public class XblClient : IXblClient
         return (insert.Concat(update).ToArray(), a.Xuid, insert.Length, update.Length);
     }
 
-    private static Title EnrichTitle(Title title, Dictionary<string, Product> store, Dictionary<string, Product> marketplace)
-    {
-        title.Source = DataSource.Live;
-        title.HexId = title.IntId.ToHexId();
-
-        store.TryGetValue(title.HexId, out var sp);
-
-        if (sp != null)
-        {
-            title.Category = sp.Category;
-            title.Products = sp.Versions.ToDictionary(kvp => kvp.Key, kvp => new TitleProduct
-            {
-                TitleId = sp.TitleId,
-                ProductId = kvp.Value.ProductId
-            });
-            title.OriginalConsole = title.Products.Keys.OrderBy(k => k).FirstOrDefault(k => k.StartsWith("Xbox"));
-            return title;
-        }
-
-        marketplace.TryGetValue(title.HexId, out var mp);
-        if (mp == null) return title;
-
-        title.Category = mp.Category;
-        title.OriginalConsole = Device.Xbox360;
-        title.Products = new Dictionary<string, TitleProduct>
-        {
-            {
-                Device.Xbox360,
-                new TitleProduct
-                {
-                    TitleId = mp.TitleId, 
-                    ProductId = mp.Versions[Device.Xbox360].ProductId,
-                    ReleaseDate = mp.Versions[Device.Xbox360].ReleaseDate
-                }
-            }
-        };
-        var sp2 = store.Values.SingleOrDefault(p => p.Title.StartsWith("[Fission]") && p.Title.EndsWith($"({title.HexId})"));
-        if (sp2 != null)
-        {
-            title.IsBackCompat = true;
-            title.Products.Add("BackCompat", new TitleProduct
-            {
-                TitleId = sp2.TitleId,
-                ProductId = sp2.Versions[Device.Xbox360].ProductId
-            });
-        }
-
-        return title;
-    }
-
     private async Task<Title[]> EnrichTitle(Title[] titles)
     {
         foreach (var title in titles)
@@ -178,6 +125,7 @@ public class XblClient : IXblClient
             if (title.CompatibleDevices.Contains("Mobile")) continue;
 
             var products = await GetGameDetailsByTitleId(title.IntId);
+            if (products.Length == 0) continue;
 
             var d = new Dictionary<string, XblProductVersion>();
             foreach (var sp in products.OrderBy(x => x.Properties.XboxConsoleGenCompatible?.Length))
@@ -270,27 +218,24 @@ public class XblClient : IXblClient
 
     private async Task<Achievement[]> GetAchievements(Title title)
     {
-        var s = await _client.GetStringAsync("achievements/title/" + title.IntId);
-        return JsonSerializer.Deserialize<TitleDetails<LiveAchievement>>(s).Achievements.Select(_mapper.Map<Achievement>).ToArray();
+        var achievements = await _api.GetAchievements(title.IntId);
+        return achievements.Select(_mapper.Map<Achievement>).ToArray();
     }
 
     private async Task<Achievement[]> Get360Achievements(Title title, string xuid)
     {
-        var s = await _client.GetStringAsync($"achievements/x360/{xuid}/title/{title.IntId}");
-        var a = JsonSerializer.Deserialize<TitleDetails<Achievement>>(s);
-        foreach (var achievement in a.Achievements)
+        var achievements = await _api.Get360Achievements(xuid, title.IntId);
+        foreach (var achievement in achievements)
         {
             achievement.TitleName = title.Name;
         }
 
-        return a.Achievements;
+        return achievements;
     }
 
-    private async Task<XblProduct[]> GetGameDetailsByTitleId(string titleId)
+    private Task<XblProduct[]> GetGameDetailsByTitleId(string titleId)
     {
-        var s = await _client.GetStringAsync("marketplace/title/" + titleId);
-        var collection = JsonSerializer.Deserialize<XblProductCollection>(s);
-        return collection.Products;
+        return _api.GetMarketplaceDetails(titleId);
     }
 
     private async Task<(int Inserted, int Updated)> UpdateStats(IProgressContext ctx, (Title[] Titles, string Xuid, int Inserted, int Updated) titlesResult)
@@ -318,9 +263,7 @@ public class XblClient : IXblClient
         
         foreach (var page in pages)
         {
-            var response = await _client.PostAsJsonAsync("player/stats", page);
-            var content = await response.Content.ReadAsStringAsync();
-            var stats = JsonSerializer.Deserialize<TitleStats>(content);
+            var stats = await _api.GetPlayerStats(page);
 
             var toInsert = stats.StatListsCollection[0].Stats.Where(t => !headers.ContainsKey(t.Id)).ToArray();
             await statRepository.BulkInsert(toInsert);

@@ -399,3 +399,6 @@ FodyWeavers.xsd
 /Xbl.Client/Properties/launchSettings.json
 /Xbl.Admin/Properties/launchSettings.json
 /Xbl.Web/Properties/launchSettings.json
+
+# Integration test secrets
+/Xbl.Client.Integration.Tests/.env

@@ -10,5 +10,5 @@ public class XblProductVersion
     public string[] XboxConsoleGenOptimized { get; set; }
     public string[] XboxConsoleGenCompatible { get; set; }
     public DateTime? RevisionId { get; set; }
-    public DateTime OriginalReleaseDate { get; set; }
+    public DateTime? OriginalReleaseDate { get; set; }
 }

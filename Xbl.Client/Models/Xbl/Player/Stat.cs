@@ -11,7 +11,7 @@ public class Stat : IHaveIntId
     [JsonPropertyName("scid")]
     public string SCID { get; set; }
 
-    [JsonPropertyName("titleid")]
+    [JsonPropertyName("titleId")]
     public string TitleId { get; set; }
 
     [JsonPropertyName("name")]
